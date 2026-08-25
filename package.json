@@ -1,6 +1,6 @@
 {
   "name": "weather-solar-card",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "private": true,
   "description": "Animated weather-station, precipitation, sun and moon card for Home Assistant",
   "scripts": {

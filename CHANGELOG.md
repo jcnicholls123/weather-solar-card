@@ -2,6 +2,17 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.7
+
+### Improved
+
+- Desktop measurement tiles now wrap into a responsive four- or five-column grid, keeping rainfall and the full local-moon tile visible without hidden horizontal scrolling.
+- Compact landscape cards retain their touch-friendly horizontal metric strip.
+
+### Fixed
+
+- Missing cloud-coverage attributes no longer render as `NaN%`; the tile is hidden until a valid value is available.
+
 ## 0.3.6
 
 ### Added

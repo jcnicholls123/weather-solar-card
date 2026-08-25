@@ -110,6 +110,7 @@ global.window = { customCards: [] };
   card._hass.states["sensor.rest_minute"] = { state: "2026-08-25T14:00:00+01:00", attributes: { data: [{ precipitation: 0 }, { precipitation: 0.4 }] } };
   card.config.minute_forecast_entity = "sensor.rest_minute";
   assert.equal(card._minuteData().first, 1);
+  assert.equal(card._number(null, Number(undefined)), null);
   assert.match(card._sceneClass("partlycloudy", false, 20), /partly/);
   assert.doesNotMatch(card._sceneClass("partlycloudy", false, 20), /cloudy/);
   assert.match(card._sceneClass("windy", false, 20), /windy-scene/);

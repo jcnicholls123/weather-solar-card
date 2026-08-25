@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.6";
+const CARD_VERSION = "0.3.7";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -191,13 +191,14 @@ const styles = `
     .solar-panel { grid-column:3; grid-row:1/3; }
     .weather-alert { grid-column:1/4; grid-row:3; }
     .forecast-panel { grid-column:1/4; grid-row:3; }
-    .details { grid-column:1/4; grid-row:4; display:flex; overflow-x:auto; scroll-snap-type:x proximity; scrollbar-width:none; padding-bottom:1px; }
+    .details { grid-column:1/4; grid-row:4; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:visible; padding-bottom:1px; }
     .content.has-alert .forecast-panel { grid-row:4; }.content.has-alert .details { grid-row:5; }
     .details::-webkit-scrollbar { display:none; }
-    .metric { flex:1 0 150px; min-height:100px; scroll-snap-align:start; }
-    .moon-metric { flex-basis:245px; min-height:118px; }
+    .metric { min-width:0; min-height:100px; }
+    .moon-metric { grid-column:span 2; min-height:118px; }
     .hour { min-width:72px; }
   }
+  @container (min-width:1000px) { .details { grid-template-columns:repeat(5,minmax(0,1fr)); } }
   @keyframes alertGlow { from{box-shadow:inset 4px 0 0 var(--alert-accent),0 10px 24px rgba(0,0,0,.09)}to{box-shadow:inset 4px 0 0 var(--alert-accent),0 12px 30px color-mix(in srgb,var(--alert-accent) 16%,transparent)} }
   @media (prefers-reduced-motion:reduce){ .particle,.cloud-shape,.stars,.lightning,.lightning-bolt,.sun-orb,.wind-stream,.wind-leaf,.fog-band,.weather-alert{animation:none!important}.particles,.wind-leaf{display:none} }
 `;
@@ -492,10 +493,11 @@ class WeatherSolarCard extends HTMLElement {
   }
 
   _number(id, fallback = null) {
-    const state = this._state(id, fallback);
-    if (state == null || state === "") return fallback;
+    const safeFallback = fallback == null || fallback === "" || !Number.isFinite(Number(fallback)) ? null : Number(fallback);
+    const state = this._state(id, safeFallback);
+    if (state == null || state === "") return safeFallback;
     const value = Number(state);
-    return Number.isFinite(value) ? value : fallback;
+    return Number.isFinite(value) ? value : safeFallback;
   }
 
   _render(weather) {
