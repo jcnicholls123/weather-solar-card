@@ -2,6 +2,13 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.5
+
+### Fixed
+
+- Entity-picker dropdowns in the visual card editor now stay open while Home Assistant state updates arrive.
+- The editor updates picker data in place instead of rebuilding every control and stealing focus.
+
 ## 0.3.4
 
 ### Added

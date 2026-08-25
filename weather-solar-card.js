@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.4";
+const CARD_VERSION = "0.3.5";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -871,7 +871,10 @@ class WeatherSolarCard extends HTMLElement {
 
 class WeatherSolarCardEditor extends HTMLElement {
   setConfig(config) { this._config = { ...DEFAULTS, ...config }; this._render(); }
-  set hass(hass) { this._hass = hass; if (this._config) this._render(); }
+  set hass(hass) {
+    this._hass = hass;
+    this.querySelectorAll("ha-entity-picker").forEach((picker) => { picker.hass = hass; });
+  }
   _render() {
     if (!this._config) return;
     this.innerHTML = `<style>.editor{display:grid;gap:12px;padding:8px 0}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}ha-textfield{width:100%}.toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px}label{display:flex;align-items:center;gap:8px}</style><div class="editor">

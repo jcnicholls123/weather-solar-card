@@ -2,7 +2,7 @@
 const assert = require("node:assert/strict");
 
 const registry = new Map();
-global.HTMLElement = class {
+global.HTMLElement = class { querySelectorAll() { return []; }
   attachShadow() {
     const card = { _innerHTML: "", _writes: 0, get innerHTML() { return this._innerHTML; }, set innerHTML(value) { this._innerHTML = value; this._writes++; } };
     this.shadowRoot = {
@@ -109,6 +109,12 @@ global.window = { customCards: [] };
   assert.ok(Math.abs(card._convertWind(43, "km/h", "mph") - 26.72) < .02);
   assert.ok(Math.abs(card._convertWind(20, "mph", "km/h") - 32.19) < .02);
   assert.equal(window.customCards[0].type, "weather-solar-card");
+  const Editor = registry.get("weather-solar-card-editor");
+  const editor = new Editor();
+  editor.setConfig({ weather_entity: "weather.home" });
+  const editorMarkup = editor.innerHTML;
+  editor.hass = card._hass;
+  assert.equal(editor.innerHTML, editorMarkup, "HA state updates should not rebuild the editor or close an open dropdown");
   const knownPosition = MOON_ASTRONOMY.position(new Date("2026-08-25T22:00:00Z"), 51.5074, -0.1278);
   const knownIllumination = MOON_ASTRONOMY.illumination(new Date("2026-08-25T22:00:00Z"));
   const knownTimes = MOON_ASTRONOMY.times(new Date("2026-08-24T23:00:00Z"), new Date("2026-08-25T23:00:00Z"), 51.5074, -0.1278);
