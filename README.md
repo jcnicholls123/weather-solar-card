@@ -9,11 +9,14 @@ No cloud service or JavaScript dependency is required by the card. Your chosen H
 - Animated day, dusk, night, cloud, rain, snow, and lightning scenes
 - Distinct partly-cloudy, overcast, wind-gust, layered-fog, hail, sleet, and heavy-rain atmospheres
 - Standard Home Assistant `weather.*` hourly forecasts through Home Assistant's live forecast subscription
+- Sunrise and sunset events placed chronologically in the hourly forecast strip
+- Swipeable, snap-aligned hourly forecasts on mobile
 - Local station overrides for temperature, apparent temperature, humidity, pressure, wind, UV, visibility, cloud cover, rain rate, and daily rainfall
 - Next-hour rain chart from an integration-provided array or separate rain start/duration/amount sensors
 - Live sun elevation and azimuth from `sun.sun`, plus sunrise and sunset
 - Location-aware moon phase, illumination, altitude, azimuth, rise/set, visibility, and observer-relative orientation
 - Responsive phone, tablet, and dashboard layout
+- Data-aware rendering that prevents unrelated Home Assistant updates from jumping mobile dashboards back to the card
 - Automatic compact landscape layouts: two columns on smaller phones and three columns on larger phones/tablets
 - Visual card editor for the essential settings
 - Reduced-motion support

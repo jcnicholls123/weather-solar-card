@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const registry = new Map();
 global.HTMLElement = class {
   attachShadow() {
-    const card = { innerHTML: "" };
+    const card = { _innerHTML: "", _writes: 0, get innerHTML() { return this._innerHTML; }, set innerHTML(value) { this._innerHTML = value; this._writes++; } };
     this.shadowRoot = {
       innerHTML: "",
       querySelector(selector) { return selector === "ha-card" ? card : null; },
@@ -48,7 +48,7 @@ global.window = { customCards: [] };
       },
       "sensor.outdoor_temperature": { state: "13.6", attributes: {} },
       "weather.openweathermap": { state: "rainy", attributes: {} },
-      "sun.sun": { state: "above_horizon", attributes: { elevation: 21.4, azimuth: 164, next_rising: "2026-08-26T05:03:00+01:00", next_setting: "2026-08-25T20:01:00+01:00" } },
+      "sun.sun": { state: "above_horizon", attributes: { elevation: 21.4, azimuth: 164, next_rising: "2026-08-26T05:03:00+01:00", next_setting: "2026-08-25T14:30:00+01:00" } },
     },
     connection: {
       async subscribeMessage(callback, request) {
@@ -69,6 +69,8 @@ global.window = { customCards: [] };
   assert.match(html, /14<span/);
   assert.match(html, /Rain expected in 3 minutes/);
   assert.match(html, /Hourly forecast/);
+  assert.match(html, /Swipe/);
+  assert.match(html, /Sunset/);
   assert.match(html, /21\.4°/);
   assert.match(html, /Local moon/);
   assert.match(html, /(high|Below horizon)/);
@@ -79,6 +81,10 @@ global.window = { customCards: [] };
   assert.equal(forecastRequest.forecast_type, "hourly");
   assert.equal(minuteRequest.domain, "openweathermap");
   assert.equal(minuteRequest.return_response, true);
+  const renderWrites = card.shadowRoot._card._writes;
+  card.hass = { ...card._hass, states: { ...card._hass.states, "sensor.unrelated": { state: "changed", attributes: {} } } };
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(card.shadowRoot._card._writes, renderWrites, "unrelated entity updates should not rebuild the card");
   card._hass.states["sensor.rest_minute"] = { state: "2026-08-25T14:00:00+01:00", attributes: { data: [{ precipitation: 0 }, { precipitation: 0.4 }] } };
   card.config.minute_forecast_entity = "sensor.rest_minute";
   assert.equal(card._minuteData().first, 1);

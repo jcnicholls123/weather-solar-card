@@ -2,6 +2,18 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.3
+
+### Added
+
+- Sunrise and sunset now appear as timed events in the hourly forecast strip when they fall within the displayed period.
+- The hourly forecast has smooth touch swiping, hour snapping, contained overscroll, and a visible swipe cue on mobile.
+
+### Fixed
+
+- Mobile dashboards no longer jump back to the top of the card when unrelated Home Assistant entities update.
+- The card now skips identical renders and opts out of browser scroll anchoring while retaining live weather, station, solar, lunar, and forecast updates.
+
 ## 0.3.2
 
 ### Added

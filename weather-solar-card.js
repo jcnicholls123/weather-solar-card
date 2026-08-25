@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.2";
+const CARD_VERSION = "0.3.3";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -51,7 +51,7 @@ const ICONS = {
 };
 
 const styles = `
-  :host { display:block; container-type:inline-size; --wsc-text:#fff; --wsc-muted:rgba(255,255,255,.72); font-family:var(--paper-font-body1_-_font-family, -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif); }
+  :host { display:block; container-type:inline-size; overflow-anchor:none; --wsc-text:#fff; --wsc-muted:rgba(255,255,255,.72); font-family:var(--paper-font-body1_-_font-family, -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif); }
   * { box-sizing:border-box; }
   ha-card { overflow:hidden; color:var(--wsc-text); border:0; background:#3679b8; min-height:620px; position:relative; isolation:isolate; }
   .scene { position:absolute; inset:0; z-index:-3; overflow:hidden; background:linear-gradient(180deg,#3f92d5 0%,#6ab4e5 52%,#aacde3 100%); transition:background 1.2s ease; }
@@ -111,9 +111,13 @@ const styles = `
   .minute-chart::before { content:""; position:absolute; left:14px; right:14px; bottom:3px; border-bottom:1px solid rgba(255,255,255,.18); }
   .rain-bar { flex:1; min-width:2px; border-radius:3px 3px 0 0; background:linear-gradient(#7dd4ff,#3ba8ec); opacity:.88; transition:height .5s; }
   .minute-axis { display:flex; justify-content:space-between; padding:3px 14px 11px; color:rgba(255,255,255,.58); font-size:10px; }
-  .hourly { display:flex; overflow-x:auto; padding:4px 7px 13px; scrollbar-width:none; scroll-snap-type:x proximity; }
+  .hourly { display:flex; overflow-x:auto; padding:4px 7px 13px; scrollbar-width:none; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch; overscroll-behavior-inline:contain; touch-action:pan-x pan-y; }
   .hourly::-webkit-scrollbar{display:none}.hour { min-width:64px; display:grid; justify-items:center; gap:6px; padding:5px 2px; scroll-snap-align:start; font-size:12px; }
+  .panel-hint { margin-left:auto; color:rgba(255,255,255,.48); font-size:9px; letter-spacing:.04em; text-transform:none; }
   .hour-time { font-weight:600; }.hour-icon { font-size:25px; height:31px; filter:drop-shadow(0 2px 3px rgba(0,0,0,.12)); }.hour-pop { color:#85d7ff; font-size:10px; min-height:12px; }.hour-temp { font-size:15px; font-weight:600; }
+  .sun-event { min-width:70px; border-radius:14px; background:linear-gradient(180deg,rgba(255,211,105,.13),rgba(255,159,75,.05)); }
+  .sun-event .hour-icon svg { width:29px; height:29px; fill:none; stroke:#ffda78; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 0 6px rgba(255,193,83,.55)); }
+  .sun-event.sunset .hour-icon svg { stroke:#ffad72; }.sun-event .hour-pop { color:#ffe19a; font-weight:700; letter-spacing:.02em; }
   .solar-body { padding:0 14px 13px; }
   .solar-chart { height:115px; position:relative; overflow:hidden; }
   .solar-chart svg { width:100%; height:100%; overflow:visible; }
@@ -314,6 +318,7 @@ class WeatherSolarCard extends HTMLElement {
   setConfig(config) {
     if (!config) throw new Error("Configuration is required");
     this.config = { ...DEFAULTS, ...config };
+    this._lastRenderSignature = null;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this.shadowRoot.innerHTML = `<style>${styles}</style><ha-card><div class="content"><div class="hero">Loading weather…</div></div></ha-card>`;
     if (this._hass) {
@@ -478,6 +483,9 @@ class WeatherSolarCard extends HTMLElement {
   }
 
   _render(weather) {
+    const renderSignature = this._renderSignature(weather);
+    if (renderSignature === this._lastRenderSignature) return;
+    this._lastRenderSignature = renderSignature;
     const a = weather.attributes || {};
     const condition = weather.state || "cloudy";
     const units = this._units(a);
@@ -522,10 +530,45 @@ class WeatherSolarCard extends HTMLElement {
         </section>
         <p class="summary">${this._escape(summary)}</p>
         ${this.config.show_minute_forecast ? this._minutePanel(minute, units.precipitation) : ""}
-        ${this.config.show_forecast ? this._forecastPanel(forecast, units) : ""}
+        ${this.config.show_forecast ? this._forecastPanel(forecast, units, sun) : ""}
         ${this.config.show_solar ? this._solarPanel(sun) : ""}
         ${this.config.show_details ? this._details({ humidity, pressure, wind, windBearing, cloud, visibility, uv, rainRate, dailyRain, apparent, units, now, isNight }) : ""}
       </div>`;
+  }
+
+  _renderSignature(weather) {
+    const entityIds = [
+      this.config.sun_entity,
+      this.config.minute_forecast_entity,
+      this.config.temperature_entity,
+      this.config.apparent_temperature_entity,
+      this.config.humidity_entity,
+      this.config.pressure_entity,
+      this.config.wind_speed_entity,
+      this.config.wind_bearing_entity,
+      this.config.rain_rate_entity,
+      this.config.daily_rain_entity,
+      this.config.uv_index_entity,
+      this.config.visibility_entity,
+      this.config.cloud_coverage_entity,
+      this.config.moon_phase_entity,
+      this.config.moon_illumination_entity,
+    ].filter(Boolean);
+    const states = entityIds.map((entityId) => {
+      const entity = this._hass.states[entityId];
+      return [entityId, entity?.state, entity?.attributes || null];
+    });
+    return JSON.stringify([
+      Math.floor(Date.now() / 60000),
+      this.config,
+      weather.state,
+      weather.attributes || {},
+      states,
+      this._forecast || [],
+      this._minuteForecast || [],
+      Boolean(this._minuteForecastLoading),
+      Boolean(this._minuteForecastError),
+    ]);
   }
 
   _units(a) {
@@ -621,15 +664,29 @@ class WeatherSolarCard extends HTMLElement {
     return `<section class="panel minute-panel"><div class="panel-title">${ICONS.droplet} Next-hour precipitation</div><div class="minute-copy">${this._escape(note)}</div><div class="minute-chart">${bars}</div><div class="minute-axis"><span>Now</span><span>15 min</span><span>30 min</span><span>45 min</span><span>60 min · ${this._escape(precipitationUnit)}</span></div></section>`;
   }
 
-  _forecastPanel(forecast, units) {
+  _forecastPanel(forecast, units, sun) {
     if (!forecast.length) return `<section class="panel forecast-panel"><div class="panel-title">Hourly forecast</div><div class="minute-copy">Forecast is loading or unavailable.</div></section>`;
-    const items = forecast.map((f, i) => {
-      const date = new Date(f.datetime);
-      const label = i === 0 ? "Now" : date.toLocaleTimeString([], { hour: "numeric" });
-      const pop = Number(f.precipitation_probability);
-      return `<div class="hour"><div class="hour-time">${this._escape(label)}</div><div class="hour-icon">${this._conditionIcon(f.condition)}</div><div class="hour-pop">${Number.isFinite(pop) && pop > 0 ? `${Math.round(pop)}%` : ""}</div><div class="hour-temp">${Math.round(Number(f.temperature))}°</div></div>`;
+    const entries = forecast.map((item, index) => ({ type: "forecast", date: new Date(item.datetime), item, index }));
+    const validTimes = entries.map((entry) => entry.date.getTime()).filter(Number.isFinite);
+    if (validTimes.length) {
+      const start = Math.min(...validTimes);
+      const end = Math.max(...validTimes) + 3600000;
+      [{ type: "sunrise", date: sun.rising }, { type: "sunset", date: sun.setting }].forEach((event) => {
+        const time = event.date?.getTime();
+        if (Number.isFinite(time) && time >= start && time <= end) entries.push(event);
+      });
+    }
+    entries.sort((left, right) => left.date - right.date);
+    const items = entries.map((entry) => {
+      if (entry.type !== "forecast") {
+        const label = entry.type === "sunrise" ? "Sunrise" : "Sunset";
+        return `<div class="hour sun-event ${entry.type}"><div class="hour-time">${this._escape(this._time(entry.date))}</div><div class="hour-icon">${ICONS[entry.type]}</div><div class="hour-pop">${label}</div><div class="hour-temp">&nbsp;</div></div>`;
+      }
+      const label = entry.index === 0 ? "Now" : entry.date.toLocaleTimeString([], { hour: "numeric" });
+      const pop = Number(entry.item.precipitation_probability);
+      return `<div class="hour"><div class="hour-time">${this._escape(label)}</div><div class="hour-icon">${this._conditionIcon(entry.item.condition)}</div><div class="hour-pop">${Number.isFinite(pop) && pop > 0 ? `${Math.round(pop)}%` : ""}</div><div class="hour-temp">${Math.round(Number(entry.item.temperature))}°</div></div>`;
     }).join("");
-    return `<section class="panel forecast-panel"><div class="panel-title">Hourly forecast</div><div class="hourly">${items}</div></section>`;
+    return `<section class="panel forecast-panel"><div class="panel-title">Hourly forecast<span class="panel-hint">Swipe →</span></div><div class="hourly">${items}</div></section>`;
   }
 
   _sunData(now) {

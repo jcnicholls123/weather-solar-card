@@ -75,7 +75,7 @@
     const p = presets[condition] || presets.cloudy;
     const wet = ["rainy","pouring","lightning-rainy","hail","snowy","snowy-rainy"].includes(condition);
     const minuteRain = Array.from({length:60},(_,i) => !wet ? 0 : i < 7 ? 0 : i < 16 ? (i-6)*.12*p.rain : i < 31 ? Math.max(.12,(31-i)*.08*p.rain) : 0);
-    const transitions = night ? ["clear-night","clear-night","clear-night","partlycloudy","partlycloudy","sunny"] : [condition,condition,condition,condition === "sunny" ? "partlycloudy" : condition,"partlycloudy","clear-night"];
+    const transitions = Array.from({length:12},(_,i) => night ? (i < 7 ? "clear-night" : i < 10 ? "partlycloudy" : "sunny") : (i < 4 ? condition : i < 8 ? "partlycloudy" : "clear-night"));
     const forecast = transitions.map((nextCondition,i) => ({datetime:new Date(Date.now()+i*3600000).toISOString(),condition:nextCondition,temperature:Math.round(p.temp+(i<3?i:-i/2)),precipitation_probability:Math.max(0,Math.round(p.pop-i*7))}));
     card.hass = {
       config:{latitude:51.5074,longitude:-0.1278,time_zone:"Europe/London",unit_system:{temperature:"°C",length:"km",wind_speed:"km/h",pressure:"hPa"}},
