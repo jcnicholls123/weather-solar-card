@@ -1,0 +1,7 @@
+{
+  "name": "Weather Solar Card",
+  "render_readme": true,
+  "filename": "weather-solar-card.js",
+  "homeassistant": "2024.4.0"
+}
+

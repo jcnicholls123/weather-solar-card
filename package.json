@@ -1,0 +1,11 @@
+{
+  "name": "weather-solar-card",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Animated weather-station, precipitation, sun and moon card for Home Assistant",
+  "scripts": {
+    "check": "node --check weather-solar-card.js",
+    "test": "powershell -NoProfile -ExecutionPolicy Bypass -File run-tests.ps1",
+    "test:ci": "node run-tests.js"
+  }
+}
