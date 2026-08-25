@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.3";
+const CARD_VERSION = "0.3.4";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -11,6 +11,7 @@ const DEFAULTS = {
   forecast_type: "hourly",
   hours_to_show: 12,
   show_minute_forecast: true,
+  show_weather_alerts: true,
   show_solar: true,
   show_details: true,
   show_forecast: true,
@@ -103,6 +104,14 @@ const styles = `
   .condition { font-size:20px; font-weight:500; }
   .high-low { font-size:15px; margin-top:3px; color:var(--wsc-muted); }
   .summary { margin:0; padding:13px 15px; border-radius:17px; background:rgba(15,31,50,.18); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.14); font-size:14px; line-height:1.35; }
+  .weather-alert { --alert-accent:#ffe178; display:grid; grid-template-columns:38px minmax(0,1fr) auto; align-items:center; gap:10px; min-height:68px; padding:10px 12px; border-radius:18px; color:#fff; text-decoration:none; background:linear-gradient(115deg,rgba(39,31,12,.52),rgba(15,31,50,.3)); border:1px solid color-mix(in srgb,var(--alert-accent) 62%,transparent); box-shadow:inset 4px 0 0 var(--alert-accent),0 12px 28px rgba(0,0,0,.11); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); animation:alertGlow 3.2s ease-in-out infinite alternate; }
+  .weather-alert.amber { --alert-accent:#ffad42; background:linear-gradient(115deg,rgba(86,44,7,.62),rgba(40,30,23,.38)); }
+  .weather-alert.red { --alert-accent:#ff6b61; background:linear-gradient(115deg,rgba(103,20,17,.68),rgba(48,24,29,.42)); }
+  .weather-alert.advisory { --alert-accent:#8ed7ff; background:linear-gradient(115deg,rgba(13,56,80,.58),rgba(15,31,50,.3)); }
+  .alert-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:50%; color:#1c2732; background:var(--alert-accent); box-shadow:0 0 18px color-mix(in srgb,var(--alert-accent) 45%,transparent); font-size:20px; font-weight:900; }
+  .alert-copy,.alert-kicker,.alert-title,.alert-description { display:block; }.alert-copy { min-width:0; }.alert-kicker { color:var(--alert-accent); font-size:9px; line-height:1.2; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }.alert-title { margin-top:2px; font-size:14px; line-height:1.25; font-weight:700; }.alert-description { margin-top:2px; color:rgba(255,255,255,.7); font-size:11px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .alert-level { align-self:start; padding:4px 7px; border-radius:999px; color:#17212b; background:var(--alert-accent); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }.weather-alert[href] .alert-level::after { content:" ↗"; }
+  @container (max-width:359px) { .weather-alert { grid-template-columns:36px minmax(0,1fr); }.alert-level { display:none; } }
   .panel { border-radius:20px; background:rgba(15,31,50,.22); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.14); overflow:hidden; box-shadow:0 14px 30px rgba(0,0,0,.08); }
   .panel-title { height:38px; padding:12px 14px 8px; color:rgba(255,255,255,.63); font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; display:flex; align-items:center; gap:7px; }
   .panel-title svg { width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round; }
@@ -124,7 +133,7 @@ const styles = `
   .solar-path { fill:none; stroke:rgba(255,255,255,.27); stroke-width:1.4; stroke-dasharray:4 4; }
   .solar-horizon { stroke:rgba(255,255,255,.18); stroke-width:1; }
   .solar-progress { fill:none; stroke:rgba(255,225,123,.9); stroke-width:2; }
-  .sun-dot { fill:#ffe47d; filter:drop-shadow(0 0 8px rgba(255,222,104,.9)); }
+  .sun-marker { position:absolute; z-index:2; width:15px; height:15px; border-radius:50%; transform:translate(-50%,-50%); background:radial-gradient(circle at 36% 32%,#fffde2 0 10%,#ffe883 30%,#ffc94f 72%,#f7a92e 100%); box-shadow:0 0 7px rgba(255,229,126,.95),0 0 16px rgba(255,190,65,.58); pointer-events:none; }
   .solar-times { display:flex; justify-content:space-between; margin-top:-2px; font-size:12px; color:var(--wsc-muted); }
   .solar-times b { display:block; color:#fff; font-size:14px; margin-top:3px; }
   .solar-center { text-align:center; position:absolute; left:0; right:0; bottom:5px; font-size:11px; color:var(--wsc-muted); }.solar-center strong{display:block;color:#fff;font-size:16px;margin-bottom:1px;}
@@ -160,9 +169,11 @@ const styles = `
     .temperature { font-size:72px; }
     .summary { grid-column:1; grid-row:2; display:flex; align-items:center; padding:10px 12px; }
     .minute-panel { grid-column:2; grid-row:1/3; }
+    .weather-alert { grid-column:1/3; grid-row:3; }
     .forecast-panel { grid-column:1/3; grid-row:3; }
     .solar-panel { grid-column:1/3; grid-row:4; }
     .details { grid-column:1/3; grid-row:5; display:flex; overflow-x:auto; scroll-snap-type:x proximity; scrollbar-width:none; padding-bottom:1px; }
+    .content.has-alert .forecast-panel { grid-row:4; }.content.has-alert .solar-panel { grid-row:5; }.content.has-alert .details { grid-row:6; }
     .details::-webkit-scrollbar { display:none; }
     .metric { flex:1 0 145px; min-height:98px; scroll-snap-align:start; }
     .moon-metric { flex-basis:245px; min-height:118px; }
@@ -176,14 +187,17 @@ const styles = `
     .summary { grid-column:1; grid-row:2; display:flex; align-items:center; padding:11px 13px; }
     .minute-panel { grid-column:2; grid-row:1/3; }
     .solar-panel { grid-column:3; grid-row:1/3; }
+    .weather-alert { grid-column:1/4; grid-row:3; }
     .forecast-panel { grid-column:1/4; grid-row:3; }
     .details { grid-column:1/4; grid-row:4; display:flex; overflow-x:auto; scroll-snap-type:x proximity; scrollbar-width:none; padding-bottom:1px; }
+    .content.has-alert .forecast-panel { grid-row:4; }.content.has-alert .details { grid-row:5; }
     .details::-webkit-scrollbar { display:none; }
     .metric { flex:1 0 150px; min-height:100px; scroll-snap-align:start; }
     .moon-metric { flex-basis:245px; min-height:118px; }
     .hour { min-width:72px; }
   }
-  @media (prefers-reduced-motion:reduce){ .particle,.cloud-shape,.stars,.lightning,.lightning-bolt,.sun-orb,.wind-stream,.wind-leaf,.fog-band{animation:none!important}.particles,.wind-leaf{display:none} }
+  @keyframes alertGlow { from{box-shadow:inset 4px 0 0 var(--alert-accent),0 10px 24px rgba(0,0,0,.09)}to{box-shadow:inset 4px 0 0 var(--alert-accent),0 12px 30px color-mix(in srgb,var(--alert-accent) 16%,transparent)} }
+  @media (prefers-reduced-motion:reduce){ .particle,.cloud-shape,.stars,.lightning,.lightning-bolt,.sun-orb,.wind-stream,.wind-leaf,.fog-band,.weather-alert{animation:none!important}.particles,.wind-leaf{display:none} }
 `;
 
 // Location-aware lunar calculations adapted from the BSD-2-Clause SunCalc
@@ -510,6 +524,7 @@ class WeatherSolarCard extends HTMLElement {
     const low = this._forecastExtreme(forecast, "templow", "min") ?? this._forecastExtreme(forecast, "temperature", "min");
     const minute = this._minuteData();
     const summary = this._summary(condition, temp, apparent, wind, rainRate, minute, units.precipitation, units.wind);
+    const alert = this.config.show_weather_alerts ? this._weatherAlert() : null;
     const particles = this.config.animate ? this._particles(condition) : "";
     const location = this.config.name || a.friendly_name || "Weather";
 
@@ -521,7 +536,7 @@ class WeatherSolarCard extends HTMLElement {
         <div class="fog-layer"><i class="fog-band"></i><i class="fog-band"></i><i class="fog-band"></i></div>
         <div class="particles">${particles}</div><div class="lightning"><svg viewBox="0 0 100 160"><path class="lightning-bolt main" d="M61 2 42 57 59 53 34 111 48 104 31 157 76 85 57 91 83 40 64 44Z"/><path class="lightning-bolt secondary" d="M57 88 77 105 68 105 84 128M45 56 25 76 36 75 22 96"/></svg></div>
       </div>
-      <div class="content">
+      <div class="content${alert ? " has-alert" : ""}">
         <section class="hero">
           <div class="location">${this._escape(location)}</div>
           <div class="temperature">${this._temperature(temp, units.temperature)}</div>
@@ -529,6 +544,7 @@ class WeatherSolarCard extends HTMLElement {
           <div class="high-low">${high != null ? `H:${Math.round(high)}°` : ""}${high != null && low != null ? " &nbsp;" : ""}${low != null ? `L:${Math.round(low)}°` : ""}</div>
         </section>
         <p class="summary">${this._escape(summary)}</p>
+        ${alert ? this._weatherAlertPanel(alert) : ""}
         ${this.config.show_minute_forecast ? this._minutePanel(minute, units.precipitation) : ""}
         ${this.config.show_forecast ? this._forecastPanel(forecast, units, sun) : ""}
         ${this.config.show_solar ? this._solarPanel(sun) : ""}
@@ -553,6 +569,8 @@ class WeatherSolarCard extends HTMLElement {
       this.config.cloud_coverage_entity,
       this.config.moon_phase_entity,
       this.config.moon_illumination_entity,
+      this.config.weather_alert_entity,
+      this.config.weather_alert_active_entity,
     ].filter(Boolean);
     const states = entityIds.map((entityId) => {
       const entity = this._hass.states[entityId];
@@ -569,6 +587,36 @@ class WeatherSolarCard extends HTMLElement {
       Boolean(this._minuteForecastLoading),
       Boolean(this._minuteForecastError),
     ]);
+  }
+
+  _weatherAlert() {
+    const entityId = this.config.weather_alert_entity;
+    if (!entityId) return null;
+    const entity = this._hass.states[entityId];
+    if (!entity || ["unknown", "unavailable"].includes(String(entity.state).toLowerCase())) return null;
+    const activeEntity = this.config.weather_alert_active_entity ? this._hass.states[this.config.weather_alert_active_entity] : null;
+    if (activeEntity && ["off", "false", "inactive", "clear", "none", "0", "unknown", "unavailable"].includes(String(activeEntity.state).toLowerCase())) return null;
+    const a = entity.attributes || {};
+    if (["off", "false", "inactive", "clear", "none", "0"].includes(String(entity.state).toLowerCase()) && !a.title && !a.headline && !a.description && !a.summary && !a.content && !a.message) return null;
+    const expires = a.expires || a.expiry || a.end || a.end_time;
+    if (expires && !Number.isNaN(Date.parse(String(expires))) && Date.parse(String(expires)) < Date.now()) return null;
+    const stateIsTimestamp = !Number.isNaN(Date.parse(String(entity.state)));
+    const title = this._plainText(a.title || a.headline || (!stateIsTimestamp ? entity.state : "") || "Weather warning");
+    const description = this._plainText(a.description || a.summary || a.content || a.message || "");
+    const combined = `${title} ${description}`.toLowerCase();
+    if (!title || /\b(no|zero) (active )?(weather )?warnings?\b|\bno warnings? in force\b/.test(combined)) return null;
+    const explicit = String(a.severity || a.level || a.warning_level || "").toLowerCase();
+    const severityText = `${explicit} ${combined}`;
+    const severity = /\bred\b/.test(severityText) ? "red" : /\bamber\b|\borange\b/.test(severityText) ? "amber" : /\byellow\b/.test(severityText) ? "yellow" : "advisory";
+    const link = this._safeUrl(a.link || a.url);
+    return { title, description, severity, link };
+  }
+
+  _weatherAlertPanel(alert) {
+    const tag = alert.link ? "a" : "div";
+    const link = alert.link ? ` href="${this._escape(alert.link)}" target="_blank" rel="noopener noreferrer"` : "";
+    const level = alert.severity === "advisory" ? "Notice" : alert.severity;
+    return `<${tag} class="weather-alert ${alert.severity}"${link}><span class="alert-icon" aria-hidden="true">!</span><span class="alert-copy"><span class="alert-kicker">Weather alert</span><span class="alert-title">${this._escape(alert.title)}</span>${alert.description ? `<span class="alert-description">${this._escape(alert.description)}</span>` : ""}</span><span class="alert-level">${this._escape(level)}</span></${tag}>`;
   }
 
   _units(a) {
@@ -684,7 +732,7 @@ class WeatherSolarCard extends HTMLElement {
       }
       const label = entry.index === 0 ? "Now" : entry.date.toLocaleTimeString([], { hour: "numeric" });
       const pop = Number(entry.item.precipitation_probability);
-      return `<div class="hour"><div class="hour-time">${this._escape(label)}</div><div class="hour-icon">${this._conditionIcon(entry.item.condition)}</div><div class="hour-pop">${Number.isFinite(pop) && pop > 0 ? `${Math.round(pop)}%` : ""}</div><div class="hour-temp">${Math.round(Number(entry.item.temperature))}°</div></div>`;
+      return `<div class="hour"><div class="hour-time">${this._escape(label)}</div><div class="hour-icon">${this._conditionIcon(entry.item.condition, entry.date)}</div><div class="hour-pop">${Number.isFinite(pop) && pop > 0 ? `${Math.round(pop)}%` : ""}</div><div class="hour-temp">${Math.round(Number(entry.item.temperature))}°</div></div>`;
     }).join("");
     return `<section class="panel forecast-panel"><div class="panel-title">Hourly forecast<span class="panel-hint">Swipe →</span></div><div class="hourly">${items}</div></section>`;
   }
@@ -710,7 +758,7 @@ class WeatherSolarCard extends HTMLElement {
     const progress = sun.elevation != null && sun.elevation < 0 ? 0 : Math.round(x);
     const sunrise = sun.rising ? this._time(sun.rising) : "—";
     const sunset = sun.setting ? this._time(sun.setting) : "—";
-    return `<section class="panel solar-panel"><div class="panel-title">${ICONS.sunrise} Sun & moon</div><div class="solar-body"><div class="solar-chart"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><path class="solar-path" d="M3 89 Q50 3 97 89"/><line class="solar-horizon" x1="0" y1="89" x2="100" y2="89"/><path class="solar-progress" pathLength="100" stroke-dasharray="${progress} 100" d="M3 89 Q50 3 97 89"/><circle class="sun-dot" cx="${x}" cy="${y}" r="2.7"/></svg><div class="solar-center"><strong>${sun.elevation == null ? "—" : `${this._round(sun.elevation, 1)}°`}</strong>Elevation · ${sun.azimuth == null ? "—" : `${Math.round(sun.azimuth)}° ${this._bearing(sun.azimuth)}`}</div></div><div class="solar-times"><span>Sunrise<b>${sunrise}</b></span><span style="text-align:right">Sunset<b>${sunset}</b></span></div></div></section>`;
+    return `<section class="panel solar-panel"><div class="panel-title">${ICONS.sunrise} Sun & moon</div><div class="solar-body"><div class="solar-chart"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><path class="solar-path" d="M3 89 Q50 3 97 89"/><line class="solar-horizon" x1="0" y1="89" x2="100" y2="89"/><path class="solar-progress" pathLength="100" stroke-dasharray="${progress} 100" d="M3 89 Q50 3 97 89"/></svg><i class="sun-marker" style="left:${x}%;top:${y}%"></i><div class="solar-center"><strong>${sun.elevation == null ? "—" : `${this._round(sun.elevation, 1)}°`}</strong>Elevation · ${sun.azimuth == null ? "—" : `${Math.round(sun.azimuth)}° ${this._bearing(sun.azimuth)}`}</div></div><div class="solar-times"><span>Sunrise<b>${sunrise}</b></span><span style="text-align:right">Sunset<b>${sunset}</b></span></div></div></section>`;
   }
 
   _moonData(now) {
@@ -805,7 +853,8 @@ class WeatherSolarCard extends HTMLElement {
   _metric(icon, label, value, note) { return `<div class="metric"><div class="metric-label">${ICONS[icon] || ""} ${this._escape(label)}</div><div class="metric-value">${this._escape(String(value))}</div><div class="metric-note">${this._escape(note || "")}</div></div>`; }
   _temperature(value, unit) { return value == null || !Number.isFinite(value) ? "—" : `${Math.round(value)}<span style="font-size:.48em;vertical-align:top;letter-spacing:0">°</span>`; }
   _forecastExtreme(forecast, key, mode) { const values = forecast.map((f) => Number(f[key])).filter(Number.isFinite); return values.length ? Math[mode](...values) : null; }
-  _conditionIcon(c) { return ({ sunny:"☀️", "clear-night":"🌙", partlycloudy:"🌤️", cloudy:"☁️", rainy:"🌧️", pouring:"🌧️", lightning:"🌩️", "lightning-rainy":"⛈️", snowy:"🌨️", "snowy-rainy":"🌨️", fog:"🌫️", windy:"💨", "windy-variant":"🌬️", hail:"🌨️" })[c] || "☁️"; }
+  _conditionIcon(c, date = new Date()) { return c === "clear-night" ? this._moonPhaseIcon(date) : ({ sunny:"☀️", partlycloudy:"🌤️", cloudy:"☁️", rainy:"🌧️", pouring:"🌧️", lightning:"🌩️", "lightning-rainy":"⛈️", snowy:"🌨️", "snowy-rainy":"🌨️", fog:"🌫️", windy:"💨", "windy-variant":"🌬️", hail:"🌨️" })[c] || "☁️"; }
+  _moonPhaseIcon(date) { return ["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"][Math.round(MOON_ASTRONOMY.illumination(date).phase * 8) % 8]; }
   _bearing(deg) { return ["N","NE","E","SE","S","SW","W","NW"][Math.round(((deg % 360) + 360) % 360 / 45) % 8]; }
   _uvLabel(v) { return v < 3 ? "Low" : v < 6 ? "Moderate" : v < 8 ? "High" : v < 11 ? "Very high" : "Extreme"; }
   _convertWind(value, fromUnit, toUnit) { if (value == null || !Number.isFinite(Number(value))) return value; const factors = { "km/h":1/3.6, mph:.44704, "m/s":1, kn:.514444, kt:.514444, "ft/s":.3048 }; const normalize = (unit) => { const u = String(unit || "").toLowerCase().replace(/\s/g, ""); if (["km/h","kph","kmh"].includes(u)) return "km/h"; if (["mph","mi/h","mih"].includes(u)) return "mph"; if (["m/s","mps","ms"].includes(u)) return "m/s"; if (["kn","kt","kts","knot","knots"].includes(u)) return "kn"; if (["ft/s","fps"].includes(u)) return "ft/s"; return u; }; const from = factors[normalize(fromUnit)]; const to = factors[normalize(toUnit)]; return from && to ? Number(value) * from / to : Number(value); }
@@ -814,6 +863,8 @@ class WeatherSolarCard extends HTMLElement {
   _time(d) { const options = { hour: "2-digit", minute: "2-digit" }; const timeZone = this.config.time_zone || this._hass.config?.time_zone; if (timeZone) options.timeZone = timeZone; try { return d.toLocaleTimeString([], options); } catch (_) { delete options.timeZone; return d.toLocaleTimeString([], options); } }
   _round(v, places = 0) { const f = 10 ** places; return Math.round(Number(v) * f) / f; }
   _title(s) { return String(s || "").replace(/[-_]/g, " ").replace(/\b\w/g, (m) => m.toUpperCase()); }
+  _plainText(s) { return String(s ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(); }
+  _safeUrl(url) { try { const value = new URL(String(url)); return ["http:", "https:"].includes(value.protocol) ? value.href : ""; } catch (_) { return ""; } }
   _escape(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]); }
   _renderError(message) { this.shadowRoot.querySelector("ha-card").innerHTML = `<div class="error"><strong>Weather Solar Card</strong><br>${this._escape(message)}</div>`; }
 }
@@ -830,7 +881,9 @@ class WeatherSolarCardEditor extends HTMLElement {
       <div class="row"><ha-textfield label="Hours to show" data-key="hours_to_show" type="number" value="${this._config.hours_to_show}"></ha-textfield><ha-textfield label="Forecast type" data-key="forecast_type" value="${this._escape(this._config.forecast_type)}"></ha-textfield></div>
       <ha-entity-picker label="Minute precipitation entity" data-key="minute_forecast_entity" value="${this._escape(this._config.minute_forecast_entity || "")}" allow-custom-entity></ha-entity-picker>
       <ha-entity-picker label="OpenWeatherMap entity (minute forecast)" data-key="openweathermap_entity" value="${this._escape(this._config.openweathermap_entity || "")}" allow-custom-entity></ha-entity-picker>
-      <div class="toggles"><label><ha-switch data-key="use_mph" ${this._config.wind_speed_unit === "mph" ? "checked" : ""}></ha-switch>Use mph</label>${["show_minute_forecast","show_forecast","show_solar","show_details","animate"].map((k) => `<label><ha-switch data-key="${k}" ${this._config[k] ? "checked" : ""}></ha-switch>${this._title(k)}</label>`).join("")}</div>
+      <ha-entity-picker label="Weather alert / RSS entity (optional)" data-key="weather_alert_entity" value="${this._escape(this._config.weather_alert_entity || "")}" allow-custom-entity></ha-entity-picker>
+      <ha-entity-picker label="Alert active entity (optional)" data-key="weather_alert_active_entity" value="${this._escape(this._config.weather_alert_active_entity || "")}" allow-custom-entity></ha-entity-picker>
+      <div class="toggles"><label><ha-switch data-key="use_mph" ${this._config.wind_speed_unit === "mph" ? "checked" : ""}></ha-switch>Use mph</label>${["show_weather_alerts","show_minute_forecast","show_forecast","show_solar","show_details","animate"].map((k) => `<label><ha-switch data-key="${k}" ${this._config[k] ? "checked" : ""}></ha-switch>${this._title(k)}</label>`).join("")}</div>
     </div>`;
     this.querySelectorAll("ha-entity-picker").forEach((el) => { el.hass = this._hass; });
     this.querySelectorAll("[data-key]").forEach((el) => el.addEventListener("change", (ev) => this._changed(ev)));

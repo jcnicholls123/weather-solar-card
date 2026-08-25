@@ -55,6 +55,7 @@
       uv_index_entity: "sensor.uv",
       rain_rate_entity: "sensor.rain_rate",
       daily_rain_entity: "sensor.rain_today",
+      ...(query.has("alert") ? { weather_alert_entity: "event.met_office_weather_warning" } : {}),
       wind_speed_unit: query.has("mph") ? "mph" : "auto",
     });
     const presets = {
@@ -86,6 +87,7 @@
         "sensor.uv":{state:String(p.uv),attributes:{}},
         "sensor.rain_rate":{state:String(p.rain),attributes:{}},
         "sensor.rain_today":{state:"3.6",attributes:{}},
+        "event.met_office_weather_warning":{state:new Date().toISOString(),attributes:{title:`${query.get("alert") || "Yellow"} warning of thunderstorms`,description:"Heavy showers and thunderstorms may cause localised flooding and travel disruption.",link:"https://weather.metoffice.gov.uk/warnings-and-advice/uk-warnings"}},
         "sensor.rain_minutes":{state:"on",attributes:{forecast:minuteRain}},
         "sensor.moon_phase":{state:"waxing_gibbous",attributes:{}},
         "sensor.moon_illumination":{state:"78",attributes:{}},

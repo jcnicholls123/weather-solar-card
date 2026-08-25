@@ -29,6 +29,7 @@ global.window = { customCards: [] };
     sun_entity: "sun.sun",
     openweathermap_entity: "weather.openweathermap",
     temperature_entity: "sensor.outdoor_temperature",
+    weather_alert_entity: "event.met_office_warning",
   });
   let forecastRequest;
   let minuteRequest;
@@ -48,6 +49,7 @@ global.window = { customCards: [] };
       },
       "sensor.outdoor_temperature": { state: "13.6", attributes: {} },
       "weather.openweathermap": { state: "rainy", attributes: {} },
+      "event.met_office_warning": { state: "2026-08-25T12:00:00+01:00", attributes: { title: "Yellow warning of thunderstorms", description: "Heavy rain is likely.", link: "https://weather.metoffice.gov.uk/warnings-and-advice/uk-warnings" } },
       "sun.sun": { state: "above_horizon", attributes: { elevation: 21.4, azimuth: 164, next_rising: "2026-08-26T05:03:00+01:00", next_setting: "2026-08-25T14:30:00+01:00" } },
     },
     connection: {
@@ -71,7 +73,18 @@ global.window = { customCards: [] };
   assert.match(html, /Hourly forecast/);
   assert.match(html, /Swipe/);
   assert.match(html, /Sunset/);
+  assert.match(html, /weather-alert yellow/);
+  assert.match(html, /Yellow warning of thunderstorms/);
+  assert.match(html, /weather\.metoffice\.gov\.uk/);
+  card._hass.states["event.met_office_warning"] = { state: "off", attributes: {} };
+  assert.equal(card._weatherAlert(), null);
+  assert.equal(card._safeUrl("javascript:alert(1)"), "");
+  card._hass.states["event.met_office_warning"] = { state: "2026-08-25T12:00:00+01:00", attributes: { title: "Red warning of rain" } };
+  assert.equal(card._weatherAlert().severity, "red");
+  card._hass.states["event.met_office_warning"] = { state: "2026-08-25T12:00:00+01:00", attributes: { title: "Yellow warning of thunderstorms", description: "Heavy rain is likely.", link: "https://weather.metoffice.gov.uk/warnings-and-advice/uk-warnings" } };
   assert.match(html, /21\.4°/);
+  assert.match(html, /sun-marker/);
+  assert.doesNotMatch(html, /sun-dot/);
   assert.match(html, /Local moon/);
   assert.match(html, /(high|Below horizon)/);
   assert.match(html, /illuminated/);
@@ -102,6 +115,7 @@ global.window = { customCards: [] };
   assert.ok(knownPosition.azimuth >= 0 && knownPosition.azimuth < 360);
   assert.ok(knownPosition.altitude >= -90 && knownPosition.altitude <= 90);
   assert.ok(knownIllumination.fraction >= 0 && knownIllumination.fraction <= 1);
+  assert.ok(["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"].includes(card._moonPhaseIcon(new Date("2026-08-25T22:00:00Z"))));
   assert.ok(knownTimes.rise instanceof Date && knownTimes.set instanceof Date);
   card.disconnectedCallback();
   assert.equal(unsubscribed, true);

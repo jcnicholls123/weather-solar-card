@@ -10,6 +10,8 @@ No cloud service or JavaScript dependency is required by the card. Your chosen H
 - Distinct partly-cloudy, overcast, wind-gust, layered-fog, hail, sleet, and heavy-rain atmospheres
 - Standard Home Assistant `weather.*` hourly forecasts through Home Assistant's live forecast subscription
 - Sunrise and sunset events placed chronologically in the hourly forecast strip
+- Real moon-phase icons for clear-night hours
+- Optional severity-coloured Met Office RSS/Feedreader weather-warning banner
 - Swipeable, snap-aligned hourly forecasts on mobile
 - Local station overrides for temperature, apparent temperature, humidity, pressure, wind, UV, visibility, cloud cover, rain rate, and daily rainfall
 - Next-hour rain chart from an integration-provided array or separate rain start/duration/amount sensors
@@ -100,6 +102,10 @@ minute_forecast_entity: sensor.precipitation_next_hour
 # Or use the HA OpenWeatherMap integration in v3.0 mode directly.
 # openweathermap_entity: weather.openweathermap
 
+# Optional Met Office RSS warning from Home Assistant Feedreader.
+# weather_alert_entity: event.met_office_weather_warnings
+# weather_alert_active_entity: binary_sensor.met_office_warning_active
+
 forecast_type: hourly
 hours_to_show: 12
 show_minute_forecast: true
@@ -108,6 +114,25 @@ show_solar: true
 show_details: true
 animate: true
 ```
+
+## Weather alerts
+
+Set `weather_alert_entity` to the Home Assistant entity created for your Met Office warning RSS feed. Feedreader event entities work directly: the card reads their `title`, `description`/`summary`, and `link` attributes, styles yellow, amber, and red warnings automatically, and makes linked alerts tappable.
+
+```yaml
+type: custom:weather-solar-card
+weather_entity: weather.met_office_dartford
+weather_alert_entity: event.met_office_weather_warnings_london_and_south_east
+```
+
+The banner is hidden when the entity is unavailable or its text says there are no warnings. Because an RSS event entity can retain its latest item after a warning ends, you can also provide a boolean helper, template binary sensor, or other active-state entity:
+
+```yaml
+weather_alert_entity: event.met_office_weather_warnings_london_and_south_east
+weather_alert_active_entity: binary_sensor.met_office_warning_active
+```
+
+When the active entity is `off`, `false`, `inactive`, `clear`, `none`, or `0`, the banner is hidden. You can choose both entities and turn alerts on or off from the visual card editor.
 
 ## Minute precipitation
 
@@ -201,6 +226,8 @@ The expected-rain sensor is used for both the graph intensity and the headline a
 | `hours_to_show` | `12` | Number of forecast periods |
 | `minute_forecast_entity` | — | Entity containing a minute intensity array |
 | `openweathermap_entity` | — | Optional HA OpenWeatherMap v3.0 weather entity for its native minute action |
+| `weather_alert_entity` | — | Optional RSS/Feedreader event or sensor containing a weather warning |
+| `weather_alert_active_entity` | — | Optional entity whose inactive state hides a retained RSS warning |
 | `rain_start_minutes_entity` | — | Minutes until rain starts |
 | `rain_duration_minutes_entity` | — | Expected rain duration in minutes |
 | `expected_rain_entity` | — | Expected precipitation amount |
@@ -224,6 +251,7 @@ The expected-rain sensor is used for both the graph intensity and the headline a
 | `wind_speed_unit` | `auto` | Converts wind readings to `mph` when selected |
 | `precipitation_unit` | `auto` | Display/unit fallback override |
 | `show_minute_forecast` | `true` | Show next-hour precipitation |
+| `show_weather_alerts` | `true` | Show the configured weather-alert banner |
 | `show_forecast` | `true` | Show hourly forecast |
 | `show_solar` | `true` | Show solar path and times |
 | `show_details` | `true` | Show station measurement tiles |

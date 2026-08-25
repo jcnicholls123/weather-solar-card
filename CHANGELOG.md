@@ -2,6 +2,18 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.4
+
+### Added
+
+- Clear-night icons in the hourly forecast now show the astronomically calculated moon phase for that forecast time instead of a generic crescent.
+- Optional weather-alert banners can read Home Assistant Feedreader event entities or normal sensors, infer Met Office yellow, amber, and red severity, and open the source warning safely.
+- Added visual-editor selectors for an alert/RSS entity, an optional active-state entity, and a show-alerts toggle.
+
+### Fixed
+
+- The solar-path sun marker is now a true circular HTML marker at every responsive width, with a layered radial surface and glow instead of a stretched SVG ellipse.
+
 ## 0.3.3
 
 ### Added

@@ -10,6 +10,11 @@ show_solar: true
 show_details: true
 animate: true
 
+# Optional Met Office RSS/Feedreader event entity.
+# weather_alert_entity: event.met_office_weather_warnings
+# Optional helper/binary sensor; the banner hides when this is off.
+# weather_alert_active_entity: binary_sensor.met_office_warning_active
+
 # Uncomment and replace these with entities from your station.
 # temperature_entity: sensor.weather_station_temperature
 # apparent_temperature_entity: sensor.weather_station_feels_like
