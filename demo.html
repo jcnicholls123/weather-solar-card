@@ -91,7 +91,8 @@
         "sensor.moon_illumination":{state:"78",attributes:{}},
         "sun.sun":{state:night?"below_horizon":"above_horizon",attributes:{elevation:p.sun,azimuth:p.azimuth,next_rising:"2026-08-26T06:03:00+01:00",next_setting:"2026-08-25T20:02:00+01:00"}}
       },
-      async callWS(){return {"weather.home":{forecast}}}
+      connection:{async subscribeMessage(callback){callback({type:"hourly",forecast});return ()=>{};}},
+      async callWS(){return {response:{}}}
     };
   </script>
 </body>

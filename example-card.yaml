@@ -22,7 +22,9 @@ animate: true
 # uv_index_entity: sensor.weather_station_uv_index
 # visibility_entity: sensor.weather_station_visibility
 # cloud_coverage_entity: sensor.weather_station_cloud_cover
+# For an OpenWeather One Call 4.0 REST sensor or another array source:
 # minute_forecast_entity: sensor.precipitation_next_hour
+# Or for the native HA OpenWeatherMap integration in v3.0 mode:
+# openweathermap_entity: weather.openweathermap
 # moon_phase_entity: sensor.moon_phase
 # moon_illumination_entity: sensor.moon_illumination
-

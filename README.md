@@ -8,7 +8,7 @@ No cloud service or JavaScript dependency is required by the card. Your chosen H
 
 - Animated day, dusk, night, cloud, rain, snow, and lightning scenes
 - Distinct partly-cloudy, overcast, wind-gust, layered-fog, hail, sleet, and heavy-rain atmospheres
-- Standard Home Assistant `weather.*` hourly forecasts via `weather/get_forecasts`
+- Standard Home Assistant `weather.*` hourly forecasts through Home Assistant's live forecast subscription
 - Local station overrides for temperature, apparent temperature, humidity, pressure, wind, UV, visibility, cloud cover, rain rate, and daily rainfall
 - Next-hour rain chart from an integration-provided array or separate rain start/duration/amount sensors
 - Live sun elevation and azimuth from `sun.sun`, plus sunrise and sunset
@@ -94,6 +94,9 @@ moon_illumination_entity: sensor.moon_illumination
 # Optional minute precipitation source; see below.
 minute_forecast_entity: sensor.precipitation_next_hour
 
+# Or use the HA OpenWeatherMap integration in v3.0 mode directly.
+# openweathermap_entity: weather.openweathermap
+
 forecast_type: hourly
 hours_to_show: 12
 show_minute_forecast: true
@@ -106,6 +109,54 @@ animate: true
 ## Minute precipitation
 
 Accurate “rain in 8 minutes, lasting 17 minutes” data cannot be inferred from a normal hourly forecast or a physical rain gauge. It needs a nowcast integration for your location. The card accepts either format below.
+
+The Met Office integration supplies hourly forecasts and next-hour rain probability, but not 60 individual one-minute values. You can keep Met Office as `weather_entity` and use a separate minute source only for this panel.
+
+### OpenWeather One Call API 4.0
+
+Home Assistant's built-in OpenWeatherMap integration currently documents its minute action for v3.0 mode. For a One Call 4.0 subscription, expose the official 1-minute timeline as a REST sensor instead.
+
+Store the API key in `secrets.yaml`:
+
+```yaml
+openweathermap_api_key: YOUR_API_KEY
+```
+
+Then add this to `configuration.yaml`:
+
+```yaml
+rest:
+  - resource: https://api.openweathermap.org/data/4.0/onecall/timeline/1min
+    scan_interval: 600
+    params:
+      lat: "{{ state_attr('zone.home', 'latitude') }}"
+      lon: "{{ state_attr('zone.home', 'longitude') }}"
+      appid: !secret openweathermap_api_key
+    sensor:
+      - name: OpenWeather Minute Forecast
+        unique_id: openweather_minute_forecast
+        value_template: "{{ now().isoformat() }}"
+        json_attributes:
+          - data
+```
+
+Restart Home Assistant, then configure the card with:
+
+```yaml
+weather_entity: weather.met_office_dartford
+minute_forecast_entity: sensor.openweather_minute_forecast
+```
+
+This polls every ten minutes—about 144 calls per day. OpenWeather's One Call 4.0 plan includes 1,000 free calls per day but enables paid overage, so set the account's daily call limit to 1,000 before use.
+
+### Home Assistant OpenWeatherMap v3.0 mode
+
+If your Home Assistant OpenWeatherMap integration is already configured in `v3.0` mode, the card can call its native minute action directly without a template or REST sensor:
+
+```yaml
+weather_entity: weather.met_office_dartford
+openweathermap_entity: weather.openweathermap
+```
 
 ### Array format
 
@@ -146,6 +197,7 @@ The expected-rain sensor is used for both the graph intensity and the headline a
 | `forecast_type` | `hourly` | Home Assistant forecast type |
 | `hours_to_show` | `12` | Number of forecast periods |
 | `minute_forecast_entity` | — | Entity containing a minute intensity array |
+| `openweathermap_entity` | — | Optional HA OpenWeatherMap v3.0 weather entity for its native minute action |
 | `rain_start_minutes_entity` | — | Minutes until rain starts |
 | `rain_duration_minutes_entity` | — | Expected rain duration in minutes |
 | `expected_rain_entity` | — | Expected precipitation amount |
@@ -193,3 +245,5 @@ node --check weather-solar-card.js
 ```
 
 The local lunar-position calculations use the SunCalc/Meeus astronomical approach. Attribution and license details are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Release history is maintained in [CHANGELOG.md](CHANGELOG.md). GitHub release descriptions use the same notes so HACS shows what changed before an update.

@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.1";
+const CARD_VERSION = "0.3.2";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -317,14 +317,23 @@ class WeatherSolarCard extends HTMLElement {
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this.shadowRoot.innerHTML = `<style>${styles}</style><ha-card><div class="content"><div class="hero">Loading weather…</div></div></ha-card>`;
     if (this._hass) {
-      this._forecastEntity = null;
       const weather = this._hass.states[this.config.weather_entity];
       if (weather) {
-        this._loadForecast();
+        this._ensureForecastSubscription();
+        this._ensureMinuteForecast();
         this._render(weather);
       }
     }
   }
+
+  connectedCallback() {
+    if (this._hass && this.config) {
+      this._ensureForecastSubscription();
+      this._ensureMinuteForecast();
+    }
+  }
+
+  disconnectedCallback() { this._stopForecastSubscription(); }
 
   set hass(hass) {
     this._hass = hass;
@@ -334,10 +343,8 @@ class WeatherSolarCard extends HTMLElement {
       this._renderError(`Entity not found: ${this.config.weather_entity}`);
       return;
     }
-    if (this._forecastEntity !== this.config.weather_entity) {
-      this._forecastEntity = this.config.weather_entity;
-      this._loadForecast();
-    }
+    this._ensureForecastSubscription();
+    this._ensureMinuteForecast();
     this._render(weather);
   }
 
@@ -350,20 +357,109 @@ class WeatherSolarCard extends HTMLElement {
 
   static getConfigElement() { return document.createElement("weather-solar-card-editor"); }
 
-  async _loadForecast() {
-    if (!this._hass?.callWS || !this.config.show_forecast) return;
+  _stopForecastSubscription() {
+    this._forecastGeneration = (this._forecastGeneration || 0) + 1;
+    const unsubscribe = this._unsubscribeForecast;
+    this._unsubscribeForecast = null;
+    this._forecastSubscriptionKey = null;
+    if (typeof unsubscribe === "function") {
+      try { unsubscribe(); } catch (_) { /* Home Assistant already closed it. */ }
+    }
+  }
+
+  async _ensureForecastSubscription() {
+    if (!this._hass || !this.config.show_forecast) {
+      this._stopForecastSubscription();
+      return;
+    }
+    const entityId = this.config.weather_entity;
+    const forecastType = this.config.forecast_type || "hourly";
+    const key = `${entityId}|${forecastType}`;
+    if (this._forecastSubscriptionKey === key) return;
+    if (this._forecastRetryKey === key && Date.now() < (this._forecastRetryAt || 0)) return;
+
+    this._stopForecastSubscription();
+    this._forecast = [];
+    this._forecastSubscriptionKey = key;
+    const generation = this._forecastGeneration;
+    const connection = this._hass.connection;
+
+    if (!connection?.subscribeMessage) {
+      await this._loadForecastLegacy(key, generation);
+      return;
+    }
+
     try {
-      const result = await this._hass.callWS({
-        type: "weather/get_forecasts",
-        forecast_type: this.config.forecast_type || "hourly",
-        entity_ids: [this.config.weather_entity],
+      const unsubscribe = await connection.subscribeMessage((event) => {
+        if (this._forecastSubscriptionKey !== key || this._forecastGeneration !== generation) return;
+        this._forecast = Array.isArray(event?.forecast) ? event.forecast : [];
+        const weather = this._hass?.states?.[entityId];
+        if (weather) this._render(weather);
+      }, {
+        type: "weather/subscribe_forecast",
+        forecast_type: forecastType,
+        entity_id: entityId,
       });
+      if (this._forecastSubscriptionKey !== key || this._forecastGeneration !== generation) unsubscribe?.();
+      else this._unsubscribeForecast = unsubscribe;
+    } catch (err) {
+      console.warn("Weather Solar Card: forecast unavailable", err);
+      this._forecast = [];
+      this._forecastSubscriptionKey = null;
+      this._forecastRetryKey = key;
+      this._forecastRetryAt = Date.now() + 60000;
+    }
+  }
+
+  async _loadForecastLegacy(key, generation) {
+    if (!this._hass?.callWS) return;
+    try {
+      const result = await this._hass.callWS({ type: "weather/get_forecasts", forecast_type: this.config.forecast_type || "hourly", entity_ids: [this.config.weather_entity] });
+      if (this._forecastSubscriptionKey !== key || this._forecastGeneration !== generation) return;
       this._forecast = result?.[this.config.weather_entity]?.forecast || [];
       const weather = this._hass.states[this.config.weather_entity];
       if (weather) this._render(weather);
     } catch (err) {
-      console.warn("Weather Solar Card: forecast unavailable", err);
+      console.warn("Weather Solar Card: legacy forecast request unavailable", err);
       this._forecast = [];
+    }
+  }
+
+  async _ensureMinuteForecast() {
+    const entityId = this.config.openweathermap_entity;
+    if (this.config.minute_forecast_entity || !entityId || !this.config.show_minute_forecast || !this._hass?.callWS) return;
+    if (this._minuteForecastEntity !== entityId) {
+      this._minuteForecastEntity = entityId;
+      this._minuteForecast = null;
+      this._minuteForecastLoadedAt = 0;
+      this._minuteForecastError = null;
+    }
+    if (this._minuteForecastLoading || Date.now() - (this._minuteForecastLoadedAt || 0) < 600000) return;
+    this._minuteForecastLoading = true;
+    this._minuteForecastLoadedAt = Date.now();
+    try {
+      const result = await this._hass.callWS({
+        type: "call_service",
+        domain: "openweathermap",
+        service: "get_minute_forecast",
+        service_data: {},
+        target: { entity_id: entityId },
+        return_response: true,
+      });
+      if (this._minuteForecastEntity !== entityId) return;
+      const response = result?.response || result;
+      const forecast = response?.[entityId]?.forecast;
+      this._minuteForecast = Array.isArray(forecast) ? forecast.slice(0, 60) : [];
+      this._minuteForecastError = null;
+    } catch (err) {
+      console.warn("Weather Solar Card: OpenWeatherMap minute forecast unavailable", err);
+      this._minuteForecast = null;
+      this._minuteForecastError = err;
+      this._minuteForecastLoadedAt = Date.now() - 540000;
+    } finally {
+      this._minuteForecastLoading = false;
+      const weather = this._hass?.states?.[this.config.weather_entity];
+      if (weather && this._minuteForecastEntity === entityId) this._render(weather);
     }
   }
 
@@ -486,18 +582,19 @@ class WeatherSolarCard extends HTMLElement {
     const entityId = this.config.minute_forecast_entity;
     const entity = entityId ? this._hass.states[entityId] : null;
     let values = [];
-    if (entity) {
-      const raw = entity.attributes?.forecast || entity.attributes?.minutes || entity.attributes?.data || [];
-      if (Array.isArray(raw)) values = raw.slice(0, 60).map((x) => Number(typeof x === "object" ? (x.precipitation ?? x.intensity ?? x.value ?? 0) : x) || 0);
-    }
+    const raw = entity
+      ? entity.attributes?.forecast || entity.attributes?.minutes || entity.attributes?.data || []
+      : this._minuteForecast || [];
+    if (Array.isArray(raw)) values = raw.slice(0, 60).map((x) => Number(typeof x === "object" ? (x.precipitation ?? x.intensity ?? x.value ?? 0) : x) || 0);
     const start = this._number(this.config.rain_start_minutes_entity, null);
     const duration = this._number(this.config.rain_duration_minutes_entity, null);
-    const amount = this._number(this.config.expected_rain_entity, null);
+    let amount = this._number(this.config.expected_rain_entity, null);
     if (!values.length && start != null) {
       values = Array.from({ length: 60 }, (_, i) => i >= start && i < start + (duration || 10) ? (amount || 1) : 0);
     }
     if (!values.length) values = Array(60).fill(0);
     while (values.length < 60) values.push(0);
+    if (amount == null && (entity || this._minuteForecast)) amount = values.reduce((sum, value) => sum + Math.max(0, value), 0) / 60;
     const first = values.findIndex((v) => v > 0);
     const last = values.reduce((found, v, i) => v > 0 ? i : found, -1);
     const rainingNow = values[0] > 0;
@@ -509,13 +606,18 @@ class WeatherSolarCard extends HTMLElement {
       const length = Math.max(1, last - first + 1);
       headline = `Rain expected in ${first} minute${first === 1 ? "" : "s"}, lasting about ${length} minutes${amount != null ? ` (${this._round(amount, 1)} expected)` : ""}.`;
     }
-    return { values, first, last, rainingNow, headline, hasSource: Boolean(entity || start != null) };
+    return {
+      values, first, last, rainingNow, headline,
+      hasSource: Boolean(entity || this._minuteForecast || start != null),
+      loading: Boolean(this.config.openweathermap_entity && this._minuteForecastLoading),
+      error: Boolean(this.config.openweathermap_entity && this._minuteForecastError),
+    };
   }
 
   _minutePanel(data, precipitationUnit) {
     const max = Math.max(...data.values, 0.1);
     const bars = data.values.map((v) => `<i class="rain-bar" style="height:${Math.max(v > 0 ? 4 : 1, (v / max) * 66)}px;opacity:${v > 0 ? .9 : .08}"></i>`).join("");
-    const note = data.hasSource ? data.headline : "No minute-by-minute source configured.";
+    const note = data.loading ? "Loading OpenWeatherMap minute forecast…" : data.error && !data.hasSource ? "Minute forecast temporarily unavailable." : data.hasSource ? data.headline : "No minute-by-minute source configured.";
     return `<section class="panel minute-panel"><div class="panel-title">${ICONS.droplet} Next-hour precipitation</div><div class="minute-copy">${this._escape(note)}</div><div class="minute-chart">${bars}</div><div class="minute-axis"><span>Now</span><span>15 min</span><span>30 min</span><span>45 min</span><span>60 min · ${this._escape(precipitationUnit)}</span></div></section>`;
   }
 
@@ -670,6 +772,7 @@ class WeatherSolarCardEditor extends HTMLElement {
       <ha-entity-picker label="Sun entity" data-key="sun_entity" value="${this._escape(this._config.sun_entity || "sun.sun")}" allow-custom-entity></ha-entity-picker>
       <div class="row"><ha-textfield label="Hours to show" data-key="hours_to_show" type="number" value="${this._config.hours_to_show}"></ha-textfield><ha-textfield label="Forecast type" data-key="forecast_type" value="${this._escape(this._config.forecast_type)}"></ha-textfield></div>
       <ha-entity-picker label="Minute precipitation entity" data-key="minute_forecast_entity" value="${this._escape(this._config.minute_forecast_entity || "")}" allow-custom-entity></ha-entity-picker>
+      <ha-entity-picker label="OpenWeatherMap entity (minute forecast)" data-key="openweathermap_entity" value="${this._escape(this._config.openweathermap_entity || "")}" allow-custom-entity></ha-entity-picker>
       <div class="toggles"><label><ha-switch data-key="use_mph" ${this._config.wind_speed_unit === "mph" ? "checked" : ""}></ha-switch>Use mph</label>${["show_minute_forecast","show_forecast","show_solar","show_details","animate"].map((k) => `<label><ha-switch data-key="${k}" ${this._config[k] ? "checked" : ""}></ha-switch>${this._title(k)}</label>`).join("")}</div>
     </div>`;
     this.querySelectorAll("ha-entity-picker").forEach((el) => { el.hass = this._hass; });
