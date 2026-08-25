@@ -2,6 +2,17 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.6
+
+### Added
+
+- Weather-alert banners can now be tapped to expand the complete warning summary and open the original Met Office warning.
+- RSS sensors containing an `entries` array are supported directly, including multiple simultaneous warnings and alternate links.
+
+### Fixed
+
+- Numeric RSS sensor states no longer produce the generic “Weather warning” fallback when detailed entries are available.
+
 ## 0.3.5
 
 ### Fixed

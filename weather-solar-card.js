@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.5";
+const CARD_VERSION = "0.3.6";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -104,14 +104,16 @@ const styles = `
   .condition { font-size:20px; font-weight:500; }
   .high-low { font-size:15px; margin-top:3px; color:var(--wsc-muted); }
   .summary { margin:0; padding:13px 15px; border-radius:17px; background:rgba(15,31,50,.18); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.14); font-size:14px; line-height:1.35; }
-  .weather-alert { --alert-accent:#ffe178; display:grid; grid-template-columns:38px minmax(0,1fr) auto; align-items:center; gap:10px; min-height:68px; padding:10px 12px; border-radius:18px; color:#fff; text-decoration:none; background:linear-gradient(115deg,rgba(39,31,12,.52),rgba(15,31,50,.3)); border:1px solid color-mix(in srgb,var(--alert-accent) 62%,transparent); box-shadow:inset 4px 0 0 var(--alert-accent),0 12px 28px rgba(0,0,0,.11); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); animation:alertGlow 3.2s ease-in-out infinite alternate; }
+  .weather-alert { --alert-accent:#ffe178; min-height:68px; border-radius:18px; color:#fff; background:linear-gradient(115deg,rgba(39,31,12,.52),rgba(15,31,50,.3)); border:1px solid color-mix(in srgb,var(--alert-accent) 62%,transparent); box-shadow:inset 4px 0 0 var(--alert-accent),0 12px 28px rgba(0,0,0,.11); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); animation:alertGlow 3.2s ease-in-out infinite alternate; overflow:hidden; }
   .weather-alert.amber { --alert-accent:#ffad42; background:linear-gradient(115deg,rgba(86,44,7,.62),rgba(40,30,23,.38)); }
   .weather-alert.red { --alert-accent:#ff6b61; background:linear-gradient(115deg,rgba(103,20,17,.68),rgba(48,24,29,.42)); }
   .weather-alert.advisory { --alert-accent:#8ed7ff; background:linear-gradient(115deg,rgba(13,56,80,.58),rgba(15,31,50,.3)); }
+  .alert-summary { display:grid; grid-template-columns:38px minmax(0,1fr) auto; align-items:center; gap:10px; min-height:68px; padding:10px 12px; cursor:pointer; list-style:none; }.alert-summary::-webkit-details-marker { display:none; }
   .alert-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:50%; color:#1c2732; background:var(--alert-accent); box-shadow:0 0 18px color-mix(in srgb,var(--alert-accent) 45%,transparent); font-size:20px; font-weight:900; }
   .alert-copy,.alert-kicker,.alert-title,.alert-description { display:block; }.alert-copy { min-width:0; }.alert-kicker { color:var(--alert-accent); font-size:9px; line-height:1.2; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }.alert-title { margin-top:2px; font-size:14px; line-height:1.25; font-weight:700; }.alert-description { margin-top:2px; color:rgba(255,255,255,.7); font-size:11px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .alert-level { align-self:start; padding:4px 7px; border-radius:999px; color:#17212b; background:var(--alert-accent); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }.weather-alert[href] .alert-level::after { content:" ↗"; }
-  @container (max-width:359px) { .weather-alert { grid-template-columns:36px minmax(0,1fr); }.alert-level { display:none; } }
+  .alert-level { align-self:start; padding:4px 7px; border-radius:999px; color:#17212b; background:var(--alert-accent); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }.alert-level::after { content:" ▾"; }.weather-alert[open] .alert-level::after { content:" ▴"; }
+  .alert-details { padding:0 12px 12px 60px; border-top:1px solid rgba(255,255,255,.12); }.alert-item { padding:11px 0 2px; }.alert-item + .alert-item { margin-top:8px; border-top:1px solid rgba(255,255,255,.12); }.alert-item-title { color:#fff; font-size:13px; line-height:1.3; font-weight:700; }.alert-item-description { margin:5px 0 0; color:rgba(255,255,255,.78); font-size:11px; line-height:1.45; }.alert-link { display:inline-block; margin-top:7px; color:var(--alert-accent); font-size:11px; font-weight:700; text-decoration:none; }.alert-link:hover { text-decoration:underline; }
+  @container (max-width:359px) { .alert-summary { grid-template-columns:36px minmax(0,1fr); }.alert-level { display:none; }.alert-details { padding-left:12px; } }
   .panel { border-radius:20px; background:rgba(15,31,50,.22); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.14); overflow:hidden; box-shadow:0 14px 30px rgba(0,0,0,.08); }
   .panel-title { height:38px; padding:12px 14px 8px; color:rgba(255,255,255,.63); font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; display:flex; align-items:center; gap:7px; }
   .panel-title svg { width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round; }
@@ -598,25 +600,31 @@ class WeatherSolarCard extends HTMLElement {
     if (activeEntity && ["off", "false", "inactive", "clear", "none", "0", "unknown", "unavailable"].includes(String(activeEntity.state).toLowerCase())) return null;
     const a = entity.attributes || {};
     if (["off", "false", "inactive", "clear", "none", "0"].includes(String(entity.state).toLowerCase()) && !a.title && !a.headline && !a.description && !a.summary && !a.content && !a.message) return null;
-    const expires = a.expires || a.expiry || a.end || a.end_time;
-    if (expires && !Number.isNaN(Date.parse(String(expires))) && Date.parse(String(expires)) < Date.now()) return null;
-    const stateIsTimestamp = !Number.isNaN(Date.parse(String(entity.state)));
-    const title = this._plainText(a.title || a.headline || (!stateIsTimestamp ? entity.state : "") || "Weather warning");
-    const description = this._plainText(a.description || a.summary || a.content || a.message || "");
-    const combined = `${title} ${description}`.toLowerCase();
-    if (!title || /\b(no|zero) (active )?(weather )?warnings?\b|\bno warnings? in force\b/.test(combined)) return null;
-    const explicit = String(a.severity || a.level || a.warning_level || "").toLowerCase();
-    const severityText = `${explicit} ${combined}`;
-    const severity = /\bred\b/.test(severityText) ? "red" : /\bamber\b|\borange\b/.test(severityText) ? "amber" : /\byellow\b/.test(severityText) ? "yellow" : "advisory";
-    const link = this._safeUrl(a.link || a.url);
-    return { title, description, severity, link };
+    const sourceEntries = Array.isArray(a.entries) ? a.entries : Array.isArray(a.alerts) ? a.alerts : [a];
+    const stateIsUseful = !Number.isNaN(Number(entity.state)) || !Number.isNaN(Date.parse(String(entity.state))) ? "" : entity.state;
+    const entries = sourceEntries.map((entry) => {
+      const expires = entry.expires || entry.expiry || entry.end || entry.end_time;
+      if (expires && !Number.isNaN(Date.parse(String(expires))) && Date.parse(String(expires)) < Date.now()) return null;
+      const title = this._plainText(entry.title || entry.headline || entry.title_detail?.value || stateIsUseful || "Weather warning");
+      const description = this._plainText(entry.description || entry.summary || entry.content || entry.message || entry.summary_detail?.value || "");
+      const combined = `${title} ${description}`.toLowerCase();
+      if (!title || /\b(no|zero) (active )?(weather )?warnings?\b|\bno warnings? in force\b/.test(combined)) return null;
+      const explicit = String(entry.severity || entry.level || entry.warning_level || a.severity || a.level || a.warning_level || "").toLowerCase();
+      const severityText = `${explicit} ${combined}`;
+      const severity = /\bred\b/.test(severityText) ? "red" : /\bamber\b|\borange\b/.test(severityText) ? "amber" : /\byellow\b/.test(severityText) ? "yellow" : "advisory";
+      const alternate = Array.isArray(entry.links) ? entry.links.find((item) => item?.rel === "alternate" && item?.href)?.href : "";
+      return { title, description, severity, link: this._safeUrl(entry.link || entry.url || alternate) };
+    }).filter(Boolean);
+    if (!entries.length) return null;
+    const severity = ["red", "amber", "yellow", "advisory"].find((level) => entries.some((entry) => entry.severity === level)) || "advisory";
+    return { ...entries[0], severity, entries };
   }
 
   _weatherAlertPanel(alert) {
-    const tag = alert.link ? "a" : "div";
-    const link = alert.link ? ` href="${this._escape(alert.link)}" target="_blank" rel="noopener noreferrer"` : "";
-    const level = alert.severity === "advisory" ? "Notice" : alert.severity;
-    return `<${tag} class="weather-alert ${alert.severity}"${link}><span class="alert-icon" aria-hidden="true">!</span><span class="alert-copy"><span class="alert-kicker">Weather alert</span><span class="alert-title">${this._escape(alert.title)}</span>${alert.description ? `<span class="alert-description">${this._escape(alert.description)}</span>` : ""}</span><span class="alert-level">${this._escape(level)}</span></${tag}>`;
+    const entries = alert.entries || [alert];
+    const level = entries.length > 1 ? `${entries.length} warnings` : alert.severity === "advisory" ? "Notice" : alert.severity;
+    const details = entries.map((entry) => `<div class="alert-item"><div class="alert-item-title">${this._escape(entry.title)}</div>${entry.description ? `<p class="alert-item-description">${this._escape(entry.description)}</p>` : ""}${entry.link ? `<a class="alert-link" href="${this._escape(entry.link)}" target="_blank" rel="noopener noreferrer">View Met Office warning ↗</a>` : ""}</div>`).join("");
+    return `<details class="weather-alert ${alert.severity}"><summary class="alert-summary"><span class="alert-icon" aria-hidden="true">!</span><span class="alert-copy"><span class="alert-kicker">Weather alert · tap for details</span><span class="alert-title">${this._escape(alert.title)}</span>${alert.description ? `<span class="alert-description">${this._escape(alert.description)}</span>` : ""}</span><span class="alert-level">${this._escape(level)}</span></summary><div class="alert-details">${details}</div></details>`;
   }
 
   _units(a) {

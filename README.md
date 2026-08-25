@@ -11,7 +11,7 @@ No cloud service or JavaScript dependency is required by the card. Your chosen H
 - Standard Home Assistant `weather.*` hourly forecasts through Home Assistant's live forecast subscription
 - Sunrise and sunset events placed chronologically in the hourly forecast strip
 - Real moon-phase icons for clear-night hours
-- Optional severity-coloured Met Office RSS/Feedreader weather-warning banner
+- Optional severity-coloured, tap-to-expand Met Office RSS weather-warning panel
 - Swipeable, snap-aligned hourly forecasts on mobile
 - Local station overrides for temperature, apparent temperature, humidity, pressure, wind, UV, visibility, cloud cover, rain rate, and daily rainfall
 - Next-hour rain chart from an integration-provided array or separate rain start/duration/amount sensors
@@ -102,8 +102,8 @@ minute_forecast_entity: sensor.precipitation_next_hour
 # Or use the HA OpenWeatherMap integration in v3.0 mode directly.
 # openweathermap_entity: weather.openweathermap
 
-# Optional Met Office RSS warning from Home Assistant Feedreader.
-# weather_alert_entity: event.met_office_weather_warnings
+# Optional Met Office RSS warning sensor or Feedreader event.
+# weather_alert_entity: sensor.met_office_weather_warnings
 # weather_alert_active_entity: binary_sensor.met_office_warning_active
 
 forecast_type: hourly
@@ -117,18 +117,18 @@ animate: true
 
 ## Weather alerts
 
-Set `weather_alert_entity` to the Home Assistant entity created for your Met Office warning RSS feed. Feedreader event entities work directly: the card reads their `title`, `description`/`summary`, and `link` attributes, styles yellow, amber, and red warnings automatically, and makes linked alerts tappable.
+Set `weather_alert_entity` to the Home Assistant entity created for your Met Office warning RSS feed. RSS sensors with an `entries` array and Feedreader event entities both work directly. The card reads each entry's `title`, `description`/`summary`, and `link`, styles yellow, amber, and red warnings automatically, and lists all simultaneous warnings in a tap-to-expand panel.
 
 ```yaml
 type: custom:weather-solar-card
 weather_entity: weather.met_office_dartford
-weather_alert_entity: event.met_office_weather_warnings_london_and_south_east
+weather_alert_entity: sensor.met_office_weather_warnings
 ```
 
 The banner is hidden when the entity is unavailable or its text says there are no warnings. Because an RSS event entity can retain its latest item after a warning ends, you can also provide a boolean helper, template binary sensor, or other active-state entity:
 
 ```yaml
-weather_alert_entity: event.met_office_weather_warnings_london_and_south_east
+weather_alert_entity: sensor.met_office_weather_warnings
 weather_alert_active_entity: binary_sensor.met_office_warning_active
 ```
 
