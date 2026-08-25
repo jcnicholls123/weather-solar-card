@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.7";
+const CARD_VERSION = "0.3.8";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -18,6 +18,7 @@ const DEFAULTS = {
   animate: true,
   temperature_unit: "auto",
   wind_speed_unit: "auto",
+  visibility_unit: "auto",
   precipitation_unit: "auto",
 };
 
@@ -123,6 +124,7 @@ const styles = `
   .rain-bar { flex:1; min-width:2px; border-radius:3px 3px 0 0; background:linear-gradient(#7dd4ff,#3ba8ec); opacity:.88; transition:height .5s; }
   .minute-axis { display:flex; justify-content:space-between; padding:3px 14px 11px; color:rgba(255,255,255,.58); font-size:10px; }
   .hourly { display:flex; overflow-x:auto; padding:4px 7px 13px; scrollbar-width:none; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch; overscroll-behavior-inline:contain; touch-action:pan-x pan-y; }
+  @media (hover:hover) and (pointer:fine) { .hourly { cursor:grab; }.hourly.dragging { cursor:grabbing; scroll-snap-type:none; user-select:none; } }
   .hourly::-webkit-scrollbar{display:none}.hour { min-width:64px; display:grid; justify-items:center; gap:6px; padding:5px 2px; scroll-snap-align:start; font-size:12px; }
   .panel-hint { margin-left:auto; color:rgba(255,255,255,.48); font-size:9px; letter-spacing:.04em; text-transform:none; }
   .hour-time { font-weight:600; }.hour-icon { font-size:25px; height:31px; filter:drop-shadow(0 2px 3px rgba(0,0,0,.12)); }.hour-pop { color:#85d7ff; font-size:10px; min-height:12px; }.hour-temp { font-size:15px; font-weight:600; }
@@ -185,6 +187,9 @@ const styles = `
     ha-card { min-height:0; }
     .content { grid-template-columns:.8fr 1.15fr 1fr; grid-template-rows:210px auto auto auto; align-items:stretch; gap:12px; padding:18px; }
     .hero { min-height:0; grid-column:1; grid-row:1; padding:0; }
+    .sun-orb { left:24%; right:auto; top:62px; }
+    .glow { left:calc(24% - 140px); right:auto; top:-92px; }
+    .sky-moon { left:clamp(55px,var(--moon-x),calc(27% - 25px)); }
     .temperature { font-size:78px; }
     .summary { grid-column:1; grid-row:2; display:flex; align-items:center; padding:11px 13px; }
     .minute-panel { grid-column:2; grid-row:1/3; }
@@ -515,7 +520,8 @@ class WeatherSolarCard extends HTMLElement {
     const wind = this._convertWind(windRaw, units.windSource, units.wind);
     const windBearing = this._number(this.config.wind_bearing_entity, Number(a.wind_bearing));
     const cloud = this._number(this.config.cloud_coverage_entity, Number(a.cloud_coverage));
-    const visibility = this._number(this.config.visibility_entity, Number(a.visibility));
+    const visibilityRaw = this._number(this.config.visibility_entity, Number(a.visibility));
+    const visibility = this._convertDistance(visibilityRaw, units.visibilitySource, units.visibility);
     const uv = this._number(this.config.uv_index_entity, null);
     const rainRate = this._number(this.config.rain_rate_entity, null);
     const dailyRain = this._number(this.config.daily_rain_entity, null);
@@ -554,6 +560,46 @@ class WeatherSolarCard extends HTMLElement {
         ${this.config.show_solar ? this._solarPanel(sun) : ""}
         ${this.config.show_details ? this._details({ humidity, pressure, wind, windBearing, cloud, visibility, uv, rainRate, dailyRain, apparent, units, now, isNight }) : ""}
       </div>`;
+    this._bindScrollInteractions(this.shadowRoot.querySelector("ha-card"));
+  }
+
+  _bindScrollInteractions(root) {
+    if (!root?.querySelectorAll) return;
+    root.querySelectorAll(".hourly").forEach((scroller) => {
+      let dragging = false;
+      let moved = false;
+      let startX = 0;
+      let startScroll = 0;
+      scroller.addEventListener("pointerdown", (event) => {
+        if (event.pointerType !== "mouse" || event.button !== 0) return;
+        dragging = true;
+        moved = false;
+        startX = event.clientX;
+        startScroll = scroller.scrollLeft;
+        scroller.setPointerCapture?.(event.pointerId);
+        scroller.classList.add("dragging");
+      });
+      scroller.addEventListener("pointermove", (event) => {
+        if (!dragging) return;
+        const distance = event.clientX - startX;
+        moved ||= Math.abs(distance) > 3;
+        scroller.scrollLeft = startScroll - distance;
+        if (moved) event.preventDefault();
+      });
+      const stop = (event) => {
+        if (!dragging) return;
+        dragging = false;
+        scroller.releasePointerCapture?.(event.pointerId);
+        scroller.classList.remove("dragging");
+      };
+      scroller.addEventListener("pointerup", stop);
+      scroller.addEventListener("pointercancel", stop);
+      scroller.addEventListener("wheel", (event) => {
+        if (scroller.scrollWidth <= scroller.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+        scroller.scrollLeft += event.deltaY;
+        event.preventDefault();
+      }, { passive:false });
+    });
   }
 
   _renderSignature(weather) {
@@ -633,12 +679,15 @@ class WeatherSolarCard extends HTMLElement {
     const length = this._hass.config?.unit_system?.length || "km";
     const weatherWindUnit = a.wind_speed_unit || this._hass.config?.unit_system?.wind_speed || "km/h";
     const stationWindUnit = this.config.wind_speed_entity ? this._hass.states[this.config.wind_speed_entity]?.attributes?.unit_of_measurement : null;
+    const weatherVisibilityUnit = a.visibility_unit || length;
+    const stationVisibilityUnit = this.config.visibility_entity ? this._hass.states[this.config.visibility_entity]?.attributes?.unit_of_measurement : null;
     return {
       temperature: this.config.temperature_unit === "auto" ? (a.temperature_unit || this._hass.config?.unit_system?.temperature || "°C") : this.config.temperature_unit,
       windSource: stationWindUnit || weatherWindUnit,
       wind: this.config.wind_speed_unit === "auto" ? (stationWindUnit || weatherWindUnit) : this.config.wind_speed_unit,
       pressure: a.pressure_unit || this._hass.config?.unit_system?.pressure || "hPa",
-      visibility: a.visibility_unit || length,
+      visibilitySource: stationVisibilityUnit || weatherVisibilityUnit,
+      visibility: this.config.visibility_unit === "auto" ? (stationVisibilityUnit || weatherVisibilityUnit) : this.config.visibility_unit,
       precipitation: this.config.precipitation_unit === "auto" ? (a.precipitation_unit || (length === "mi" ? "in" : "mm")) : this.config.precipitation_unit,
     };
   }
@@ -868,6 +917,7 @@ class WeatherSolarCard extends HTMLElement {
   _bearing(deg) { return ["N","NE","E","SE","S","SW","W","NW"][Math.round(((deg % 360) + 360) % 360 / 45) % 8]; }
   _uvLabel(v) { return v < 3 ? "Low" : v < 6 ? "Moderate" : v < 8 ? "High" : v < 11 ? "Very high" : "Extreme"; }
   _convertWind(value, fromUnit, toUnit) { if (value == null || !Number.isFinite(Number(value))) return value; const factors = { "km/h":1/3.6, mph:.44704, "m/s":1, kn:.514444, kt:.514444, "ft/s":.3048 }; const normalize = (unit) => { const u = String(unit || "").toLowerCase().replace(/\s/g, ""); if (["km/h","kph","kmh"].includes(u)) return "km/h"; if (["mph","mi/h","mih"].includes(u)) return "mph"; if (["m/s","mps","ms"].includes(u)) return "m/s"; if (["kn","kt","kts","knot","knots"].includes(u)) return "kn"; if (["ft/s","fps"].includes(u)) return "ft/s"; return u; }; const from = factors[normalize(fromUnit)]; const to = factors[normalize(toUnit)]; return from && to ? Number(value) * from / to : Number(value); }
+  _convertDistance(value, fromUnit, toUnit) { if (value == null || !Number.isFinite(Number(value))) return value; const factors = { km:1, mi:1.609344, m:.001, ft:.0003048 }; const normalize = (unit) => { const u = String(unit || "").toLowerCase().trim(); if (["km","kilometer","kilometers","kilometre","kilometres"].includes(u)) return "km"; if (["mi","mile","miles"].includes(u)) return "mi"; if (["m","meter","meters","metre","metres"].includes(u)) return "m"; if (["ft","foot","feet"].includes(u)) return "ft"; return u; }; const from = factors[normalize(fromUnit)]; const to = factors[normalize(toUnit)]; return from && to ? Number(value) * from / to : Number(value); }
   _moonClass(phase) { const p = String(phase || "").toLowerCase(); const shape = p.includes("new") ? "new" : p.includes("crescent") ? "crescent" : p.includes("quarter") ? "quarter" : p.includes("gibbous") ? "gibbous" : "full"; return `${shape}${p.includes("waning") ? " waning" : ""}`; }
   _moonSkyStyle(moon) { if (moon.altitude == null || moon.azimuth == null) return ""; const x = 50 - Math.sin(moon.azimuth * Math.PI / 180) * 42; const y = 76 - Math.max(0, Math.min(80, moon.altitude)) * .78; return `--moon-x:${this._round(x, 1)}%;--moon-y:${this._round(y, 1)}%;--moon-tilt:${this._round(moon.tilt || 0, 1)}deg`; }
   _time(d) { const options = { hour: "2-digit", minute: "2-digit" }; const timeZone = this.config.time_zone || this._hass.config?.time_zone; if (timeZone) options.timeZone = timeZone; try { return d.toLocaleTimeString([], options); } catch (_) { delete options.timeZone; return d.toLocaleTimeString([], options); } }
@@ -896,12 +946,12 @@ class WeatherSolarCardEditor extends HTMLElement {
       <ha-entity-picker label="OpenWeatherMap entity (minute forecast)" data-key="openweathermap_entity" value="${this._escape(this._config.openweathermap_entity || "")}" allow-custom-entity></ha-entity-picker>
       <ha-entity-picker label="Weather alert / RSS entity (optional)" data-key="weather_alert_entity" value="${this._escape(this._config.weather_alert_entity || "")}" allow-custom-entity></ha-entity-picker>
       <ha-entity-picker label="Alert active entity (optional)" data-key="weather_alert_active_entity" value="${this._escape(this._config.weather_alert_active_entity || "")}" allow-custom-entity></ha-entity-picker>
-      <div class="toggles"><label><ha-switch data-key="use_mph" ${this._config.wind_speed_unit === "mph" ? "checked" : ""}></ha-switch>Use mph</label>${["show_weather_alerts","show_minute_forecast","show_forecast","show_solar","show_details","animate"].map((k) => `<label><ha-switch data-key="${k}" ${this._config[k] ? "checked" : ""}></ha-switch>${this._title(k)}</label>`).join("")}</div>
+      <div class="toggles"><label><ha-switch data-key="use_mph" ${this._config.wind_speed_unit === "mph" ? "checked" : ""}></ha-switch>Use mph</label><label><ha-switch data-key="use_miles" ${this._config.visibility_unit === "mi" ? "checked" : ""}></ha-switch>Visibility in miles</label>${["show_weather_alerts","show_minute_forecast","show_forecast","show_solar","show_details","animate"].map((k) => `<label><ha-switch data-key="${k}" ${this._config[k] ? "checked" : ""}></ha-switch>${this._title(k)}</label>`).join("")}</div>
     </div>`;
     this.querySelectorAll("ha-entity-picker").forEach((el) => { el.hass = this._hass; });
     this.querySelectorAll("[data-key]").forEach((el) => el.addEventListener("change", (ev) => this._changed(ev)));
   }
-  _changed(ev) { const key = ev.currentTarget.dataset.key; let value = ev.currentTarget.checked ?? ev.detail?.value ?? ev.currentTarget.value; if (key === "hours_to_show") value = Number(value); const config = key === "use_mph" ? { ...this._config, wind_speed_unit: value ? "mph" : "auto" } : { ...this._config, [key]: value }; if (key !== "use_mph" && (value === "" || value == null)) delete config[key]; this._config = config; this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true })); }
+  _changed(ev) { const key = ev.currentTarget.dataset.key; let value = ev.currentTarget.checked ?? ev.detail?.value ?? ev.currentTarget.value; if (key === "hours_to_show") value = Number(value); const config = key === "use_mph" ? { ...this._config, wind_speed_unit: value ? "mph" : "auto" } : key === "use_miles" ? { ...this._config, visibility_unit: value ? "mi" : "auto" } : { ...this._config, [key]: value }; if (!["use_mph","use_miles"].includes(key) && (value === "" || value == null)) delete config[key]; this._config = config; this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true })); }
   _title(s) { return String(s).replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase()); }
   _escape(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]); }
 }

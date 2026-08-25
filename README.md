@@ -249,6 +249,7 @@ The expected-rain sensor is used for both the graph intensity and the headline a
 | `time_zone` | HA timezone | Optional local-time override for lunar and solar times |
 | `temperature_unit` | `auto` | Display/unit fallback override |
 | `wind_speed_unit` | `auto` | Converts wind readings to `mph` when selected |
+| `visibility_unit` | `auto` | Converts visibility readings to `mi` when selected |
 | `precipitation_unit` | `auto` | Display/unit fallback override |
 | `show_minute_forecast` | `true` | Show next-hour precipitation |
 | `show_weather_alerts` | `true` | Show the configured weather-alert banner |
@@ -266,6 +267,7 @@ The expected-rain sensor is used for both the graph intensity and the headline a
 - If hourly forecast stays empty, confirm that the selected weather integration supports hourly forecasts.
 - Browser-level reduced-motion settings turn off particle motion automatically.
 - The visual card editor includes a **Use mph** toggle. It converts weather-entity or station-sensor readings from km/h, m/s, knots, or ft/s; switching it off returns to Home Assistant's native unit. YAML users can set `wind_speed_unit: mph` directly.
+- The visual card editor also includes a **Visibility in miles** toggle. YAML users can set `visibility_unit: mi`; kilometre, metre, mile, and foot source values are converted automatically.
 
 ## Development
 

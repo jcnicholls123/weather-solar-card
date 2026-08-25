@@ -2,6 +2,19 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.8
+
+### Added
+
+- The hourly forecast can now be grabbed and dragged with a desktop mouse.
+- Vertical mouse-wheel movement scrolls the hourly strip horizontally when more forecast hours are available.
+- Added a visual-editor toggle and YAML `visibility_unit` option for converting visibility between kilometres and miles.
+
+### Fixed
+
+- In wide three-column layouts, the animated sun and sky glow now sit beside the current temperature instead of hiding behind the Sun & Moon panel.
+- The animated night moon is constrained to the hero column on desktop while retaining its live astronomical position.
+
 ## 0.3.7
 
 ### Improved

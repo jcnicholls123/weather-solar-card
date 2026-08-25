@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const registry = new Map();
 global.HTMLElement = class { querySelectorAll() { return []; }
   attachShadow() {
-    const card = { _innerHTML: "", _writes: 0, get innerHTML() { return this._innerHTML; }, set innerHTML(value) { this._innerHTML = value; this._writes++; } };
+    const card = { _innerHTML: "", _writes: 0, querySelectorAll() { return []; }, get innerHTML() { return this._innerHTML; }, set innerHTML(value) { this._innerHTML = value; this._writes++; } };
     this.shadowRoot = {
       innerHTML: "",
       querySelector(selector) { return selector === "ha-card" ? card : null; },
@@ -74,6 +74,17 @@ global.window = { customCards: [] };
   assert.match(html, /14<span/);
   assert.match(html, /Rain expected in 3 minutes/);
   assert.match(html, /Hourly forecast/);
+  assert.equal(typeof card._bindScrollInteractions, "function");
+  const scrollListeners = {};
+  const scroller = { scrollWidth:500, clientWidth:200, scrollLeft:0, classList:{ add() {}, remove() {} }, addEventListener(name, callback) { scrollListeners[name] = callback; } };
+  card._bindScrollInteractions({ querySelectorAll() { return [scroller]; } });
+  scrollListeners.pointerdown({ pointerType:"mouse", button:0, clientX:100, pointerId:1 });
+  scrollListeners.pointermove({ clientX:60, preventDefault() {} });
+  assert.equal(scroller.scrollLeft, 40);
+  let wheelPrevented = false;
+  scrollListeners.wheel({ deltaX:0, deltaY:30, preventDefault() { wheelPrevented = true; } });
+  assert.equal(scroller.scrollLeft, 70);
+  assert.equal(wheelPrevented, true);
   assert.match(html, /Swipe/);
   assert.match(html, /Sunset/);
   assert.match(html, /weather-alert yellow/);
@@ -118,6 +129,8 @@ global.window = { customCards: [] };
   assert.match(card._particles("hail"), /particle hail/);
   assert.ok(Math.abs(card._convertWind(43, "km/h", "mph") - 26.72) < .02);
   assert.ok(Math.abs(card._convertWind(20, "mph", "km/h") - 32.19) < .02);
+  assert.ok(Math.abs(card._convertDistance(34.8, "km", "mi") - 21.62) < .02);
+  assert.ok(Math.abs(card._convertDistance(10, "mi", "km") - 16.09) < .02);
   assert.equal(window.customCards[0].type, "weather-solar-card");
   const Editor = registry.get("weather-solar-card-editor");
   const editor = new Editor();
