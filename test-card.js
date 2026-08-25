@@ -125,6 +125,8 @@ global.window = { customCards: [] };
   assert.match(card._sceneClass("partlycloudy", false, 20), /partly/);
   assert.doesNotMatch(card._sceneClass("partlycloudy", false, 20), /cloudy/);
   assert.match(card._sceneClass("windy", false, 20), /windy-scene/);
+  assert.match(card._windSceneClass(30, 90, "mph"), /gale reverse/);
+  assert.equal(card._windSceneClass(8, 270, "mph"), "breeze");
   assert.match(card._sceneClass("fog", false, 5), /foggy/);
   assert.match(card._particles("hail"), /particle hail/);
   assert.ok(Math.abs(card._convertWind(43, "km/h", "mph") - 26.72) < .02);

@@ -2,6 +2,14 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.9
+
+### Improved
+
+- Rebuilt windy scenes with seven layered airflow paths, intermittent curved gust fronts, depth variation, and speed-sensitive breeze, brisk, and gale motion.
+- Added occasional multi-colour leaves with natural arcing flight, tumbling, flutter, scale variation, and long staggered pauses.
+- Wind direction now reverses the scene for easterly winds, while reduced-motion mode disables all new gust and leaf effects.
+
 ## 0.3.8
 
 ### Added

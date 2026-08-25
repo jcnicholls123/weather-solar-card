@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.8";
+const CARD_VERSION = "0.3.9";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -79,11 +79,17 @@ const styles = `
   .cloud-shape:nth-child(1){top:9%;left:-40%;}.cloud-shape:nth-child(2){top:29%;left:-65%;animation-delay:-11s;animation-duration:32s;transform:scale(.72)}.cloud-shape:nth-child(3){top:14%;right:9%;width:220px;opacity:.85;animation:cloudBreathe 9s ease-in-out infinite alternate}
   .wind-layer,.fog-layer { position:absolute; inset:0; opacity:0; transition:opacity 1s; overflow:hidden; }
   .windy-scene .wind-layer { opacity:.88; }
+  .wind-layer.reverse { transform:scaleX(-1); }
   .wind-streams { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
-  .wind-stream { fill:none; stroke:rgba(226,245,255,.68); stroke-width:1.35; vector-effect:non-scaling-stroke; stroke-linecap:round; stroke-dasharray:11 24 3 31; filter:drop-shadow(0 0 2px rgba(205,238,255,.38)); animation:windFlow 2.8s linear infinite; }
-  .wind-stream:nth-child(2){animation-delay:-1.1s;animation-duration:3.6s;opacity:.7}.wind-stream:nth-child(3){animation-delay:-2.4s;animation-duration:3.1s;opacity:.85}.wind-stream:nth-child(4){animation-delay:-.6s;animation-duration:4.2s;opacity:.55}.wind-stream:nth-child(5){animation-delay:-3s;animation-duration:3.4s;opacity:.72}
-  .wind-leaf { position:absolute; left:-8%; width:12px; height:7px; border-radius:90% 10% 90% 10%; background:#b58a52; box-shadow:0 0 4px rgba(27,46,57,.38); animation:leafTumble 5.4s linear infinite; }
-  .wind-leaf.l1{top:24%;animation-delay:-1.2s}.wind-leaf.l2{top:55%;animation-delay:-3.9s;animation-duration:6.1s;background:#769061;transform:scale(.75)}.wind-leaf.l3{top:76%;animation-delay:-2.4s;animation-duration:4.8s;background:#9b7145;transform:scale(.6)}
+  .wind-stream { fill:none; stroke:rgba(226,245,255,.68); stroke-width:1.2; vector-effect:non-scaling-stroke; stroke-linecap:round; stroke-dasharray:14 28 4 36; filter:drop-shadow(0 0 2px rgba(205,238,255,.38)); animation:windFlow 3.4s linear infinite; }
+  .wind-stream:nth-child(2){animation-delay:-1.1s;animation-duration:4.3s;opacity:.58}.wind-stream:nth-child(3){animation-delay:-2.4s;animation-duration:3.6s;opacity:.82}.wind-stream:nth-child(4){animation-delay:-.6s;animation-duration:5.1s;opacity:.42}.wind-stream:nth-child(5){animation-delay:-3s;animation-duration:4s;opacity:.68}.wind-stream:nth-child(6){animation-delay:-1.8s;animation-duration:5.8s;opacity:.34}.wind-stream:nth-child(7){animation-delay:-4.2s;animation-duration:3.8s;opacity:.55}
+  .wind-layer.brisk .wind-stream { animation-duration:2.7s; }.wind-layer.gale .wind-stream { animation-duration:1.85s; stroke-width:1.45; stroke-dasharray:18 19 5 23; }
+  .wind-gust { position:absolute; left:-42%; width:52%; height:54px; border-top:2px solid rgba(230,247,255,.58); border-radius:50%; filter:blur(.35px) drop-shadow(0 0 4px rgba(192,230,250,.28)); opacity:0; animation:gustSweep 9.5s cubic-bezier(.2,.55,.3,1) infinite; }
+  .wind-gust.g1{top:17%;animation-delay:-2.2s}.wind-gust.g2{top:48%;width:39%;animation-delay:-6.8s;animation-duration:12.5s;opacity:0}.wind-gust.g3{top:76%;width:46%;animation-delay:-9.4s;animation-duration:14s}.wind-layer.gale .wind-gust{animation-duration:6.8s;border-top-width:2.5px}
+  .wind-leaf { --leaf-color:#b7874f; --leaf-scale:1; --leaf-duration:15s; position:absolute; left:-10%; top:var(--leaf-y,30%); width:16px; height:11px; opacity:0; animation:leafFlight var(--leaf-duration) cubic-bezier(.18,.52,.34,1) infinite; animation-delay:var(--leaf-delay,0s); }
+  .wind-leaf::before { content:""; position:absolute; inset:1px; border-radius:95% 8% 95% 10%; background:linear-gradient(135deg,color-mix(in srgb,var(--leaf-color) 72%,#f2c36f),var(--leaf-color)); box-shadow:0 2px 5px rgba(19,38,51,.35); transform:scale(var(--leaf-scale)) rotate(18deg); animation:leafFlutter 1.15s ease-in-out infinite alternate; }
+  .wind-leaf::after { content:""; position:absolute; left:48%; top:45%; width:9px; height:1px; background:rgba(67,54,31,.55); transform:rotate(28deg); transform-origin:left; }
+  .wind-leaf.l1{--leaf-y:22%;--leaf-delay:-3s;--leaf-duration:15s}.wind-leaf.l2{--leaf-y:51%;--leaf-delay:-11s;--leaf-duration:19s;--leaf-color:#758d55;--leaf-scale:.78}.wind-leaf.l3{--leaf-y:73%;--leaf-delay:-7s;--leaf-duration:17s;--leaf-color:#9a653f;--leaf-scale:.62}.wind-leaf.l4{--leaf-y:38%;--leaf-delay:-17s;--leaf-duration:23s;--leaf-color:#c49a52;--leaf-scale:.52}.wind-leaf.l5{--leaf-y:84%;--leaf-delay:-14s;--leaf-duration:21s;--leaf-color:#6f8250;--leaf-scale:.7}
   .foggy .fog-layer { opacity:.8; }
   .fog-band { position:absolute; left:-20%; width:140%; height:76px; border-radius:50%; background:rgba(235,243,246,.2); filter:blur(18px); animation:fogDrift 12s ease-in-out infinite alternate; }
   .fog-band:nth-child(1){top:18%}.fog-band:nth-child(2){top:43%;animation-delay:-5s;opacity:.75}.fog-band:nth-child(3){top:68%;animation-delay:-9s;opacity:.6}
@@ -163,7 +169,9 @@ const styles = `
   @keyframes twinkle { from{opacity:.35}to{opacity:.66} }
   @keyframes sunPulse { from{box-shadow:0 0 20px rgba(255,224,108,.8),0 0 60px rgba(255,221,94,.38)}to{box-shadow:0 0 30px rgba(255,232,132,.95),0 0 88px rgba(255,221,94,.55)} }
   @keyframes windFlow { from{stroke-dashoffset:0}to{stroke-dashoffset:-69} }
-  @keyframes leafTumble { 0%{transform:translate(-5vw,0) rotate(0deg);opacity:0}12%{opacity:.8}45%{transform:translate(48vw,-22px) rotate(410deg)}70%{transform:translate(78vw,18px) rotate(690deg);opacity:.9}100%{transform:translate(116vw,-10px) rotate(980deg);opacity:0} }
+  @keyframes gustSweep { 0%,12%{transform:translateX(0) scaleX(.65);opacity:0}18%{opacity:.7}48%{opacity:.42}72%{transform:translateX(285%) scaleX(1.22);opacity:.65}82%,100%{transform:translateX(310%) scaleX(1.35);opacity:0} }
+  @keyframes leafFlight { 0%,18%{transform:translate3d(-6vw,0,0) rotate(0deg);opacity:0}22%{opacity:.88}38%{transform:translate3d(35vw,-26px,0) rotate(155deg);opacity:.92}53%{transform:translate3d(57vw,15px,0) rotate(340deg);opacity:.82}68%{transform:translate3d(79vw,-18px,0) rotate(525deg);opacity:.9}82%{transform:translate3d(101vw,9px,0) rotate(710deg);opacity:.58}88%,100%{transform:translate3d(119vw,-12px,0) rotate(840deg);opacity:0} }
+  @keyframes leafFlutter { from{transform:scale(var(--leaf-scale)) rotate(18deg) rotateY(0deg)}to{transform:scale(var(--leaf-scale)) rotate(-28deg) rotateY(78deg)} }
   @keyframes fogDrift { from{transform:translateX(-4%) scaleY(.9)}to{transform:translateX(5%) scaleY(1.15)} }
   @keyframes cloudBreathe { from{transform:translate(-7px,-3px) scale(.92)}to{transform:translate(10px,5px) scale(1.08)} }
   @container (min-width:560px) and (max-width:699px) {
@@ -205,7 +213,7 @@ const styles = `
   }
   @container (min-width:1000px) { .details { grid-template-columns:repeat(5,minmax(0,1fr)); } }
   @keyframes alertGlow { from{box-shadow:inset 4px 0 0 var(--alert-accent),0 10px 24px rgba(0,0,0,.09)}to{box-shadow:inset 4px 0 0 var(--alert-accent),0 12px 30px color-mix(in srgb,var(--alert-accent) 16%,transparent)} }
-  @media (prefers-reduced-motion:reduce){ .particle,.cloud-shape,.stars,.lightning,.lightning-bolt,.sun-orb,.wind-stream,.wind-leaf,.fog-band,.weather-alert{animation:none!important}.particles,.wind-leaf{display:none} }
+  @media (prefers-reduced-motion:reduce){ .particle,.cloud-shape,.stars,.lightning,.lightning-bolt,.sun-orb,.wind-stream,.wind-gust,.wind-leaf,.wind-leaf::before,.fog-band,.weather-alert{animation:none!important}.particles,.wind-leaf,.wind-gust{display:none} }
 `;
 
 // Location-aware lunar calculations adapted from the BSD-2-Clause SunCalc
@@ -542,7 +550,7 @@ class WeatherSolarCard extends HTMLElement {
       <div class="scene ${sceneClass}">
         <div class="stars"></div><div class="glow"></div><div class="sun-orb"></div><div class="sky-moon ${this._moonClass(sun.moon.phase)}${sun.moon.altitude != null && sun.moon.altitude <= 0 ? " below" : ""}" style="${this._moonSkyStyle(sun.moon)}"></div>
         <div class="cloud-layer"><i class="cloud-shape"></i><i class="cloud-shape"></i><i class="cloud-shape"></i></div>
-        <div class="wind-layer"><svg class="wind-streams" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="wind-stream" d="M-12 18 C10 5 24 31 48 18 S82 8 112 22"/><path class="wind-stream" d="M-18 36 C8 20 29 48 55 34 S87 25 116 39"/><path class="wind-stream" d="M-10 55 C16 42 31 67 58 53 S88 45 114 59"/><path class="wind-stream" d="M-20 73 C7 58 27 84 50 71 S83 63 118 76"/><path class="wind-stream" d="M-14 89 C14 77 33 96 61 86 S92 82 114 92"/></svg><i class="wind-leaf l1"></i><i class="wind-leaf l2"></i><i class="wind-leaf l3"></i></div>
+        <div class="wind-layer ${this._windSceneClass(wind, windBearing, units.wind)}"><i class="wind-gust g1"></i><i class="wind-gust g2"></i><i class="wind-gust g3"></i><svg class="wind-streams" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="wind-stream" d="M-12 14 C8 3 21 27 45 16 S80 4 112 17"/><path class="wind-stream" d="M-18 28 C6 14 27 42 53 27 S86 18 116 31"/><path class="wind-stream" d="M-10 43 C15 31 32 55 58 42 S89 34 114 47"/><path class="wind-stream" d="M-20 58 C8 43 28 70 52 57 S84 48 118 61"/><path class="wind-stream" d="M-14 72 C12 60 34 82 61 70 S91 64 114 75"/><path class="wind-stream" d="M-19 86 C6 72 27 98 51 84 S85 76 117 89"/><path class="wind-stream" d="M-8 95 C18 85 37 103 64 93 S92 88 112 97"/></svg><i class="wind-leaf l1"></i><i class="wind-leaf l2"></i><i class="wind-leaf l3"></i><i class="wind-leaf l4"></i><i class="wind-leaf l5"></i></div>
         <div class="fog-layer"><i class="fog-band"></i><i class="fog-band"></i><i class="fog-band"></i></div>
         <div class="particles">${particles}</div><div class="lightning"><svg viewBox="0 0 100 160"><path class="lightning-bolt main" d="M61 2 42 57 59 53 34 111 48 104 31 157 76 85 57 91 83 40 64 44Z"/><path class="lightning-bolt secondary" d="M57 88 77 105 68 105 84 128M45 56 25 76 36 75 22 96"/></svg></div>
       </div>
@@ -705,6 +713,13 @@ class WeatherSolarCard extends HTMLElement {
     if (["snowy", "snowy-rainy"].includes(condition)) classes.push("snowy", "has-clouds");
     if (["lightning", "lightning-rainy"].includes(condition)) classes.push("storm");
     return classes.join(" ");
+  }
+
+  _windSceneClass(speed, bearing, unit) {
+    const metresPerSecond = this._convertWind(speed, unit, "m/s");
+    const intensity = Number(metresPerSecond) >= 12 ? "gale" : Number(metresPerSecond) >= 6 ? "brisk" : "breeze";
+    const direction = Number.isFinite(Number(bearing)) && ((Number(bearing) % 360) + 360) % 360 > 0 && ((Number(bearing) % 360) + 360) % 360 < 180 ? " reverse" : "";
+    return `${intensity}${direction}`;
   }
 
   _particles(condition) {
