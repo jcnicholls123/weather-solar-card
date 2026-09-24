@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.10";
+const CARD_VERSION = "0.3.11";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -71,8 +71,8 @@ const styles = `
   .star.bright::before { width:calc(var(--star-size) * 4.2); height:.55px; }.star.bright::after { width:.55px; height:calc(var(--star-size) * 4.2); }
   .star.soft { filter:blur(.35px); }
   .meteor { position:absolute; left:76%; top:9%; width:74px; height:1px; opacity:0; transform:rotate(-24deg); transform-origin:right center; background:linear-gradient(90deg,transparent,rgba(205,224,255,.12),rgba(248,252,255,.92)); filter:drop-shadow(0 0 3px rgba(197,220,255,.7)); animation:meteorPass 19s ease-in infinite; animation-delay:-8s; }
-  .night .stars { opacity:.88; }
-  .night.has-clouds .stars { opacity:.12; filter:blur(.65px); }
+  .night .stars { opacity:var(--sky-visibility,.8); }
+  .night.has-clouds .stars { opacity:var(--sky-visibility,.3); }
   .stars.static .star,.stars.static .meteor { animation:none!important; }
   .glow { position:absolute; width:280px; height:280px; border-radius:50%; top:-125px; right:-80px; background:radial-gradient(circle,rgba(255,239,177,.34),transparent 67%); filter:blur(2px); }
   .sun-orb { position:absolute; top:48px; right:52px; width:54px; height:54px; border-radius:50%; opacity:0; transform:scale(.8); background:radial-gradient(circle at 38% 35%,#fffbd1 0 8%,#ffe47a 32%,#ffc84d 72%); box-shadow:0 0 22px rgba(255,224,108,.85),0 0 70px rgba(255,221,94,.45); transition:opacity 1.2s,transform 1.2s; }
@@ -178,14 +178,14 @@ const styles = `
   .error { margin:16px; padding:14px; background:var(--error-color,#db4437); border-radius:12px; color:white; }
   @keyframes drift { from{transform:translateX(0)}to{transform:translateX(calc(100vw + 420px))} }
   @keyframes fall { to{transform:translate(55px,115vh) rotate(8deg)} }
-  @keyframes rainfall { from{transform:translate3d(0,-18vh,0) skewX(var(--drop-skew,-8deg))}to{transform:translate3d(var(--rain-drift,48px),138vh,0) skewX(var(--drop-skew,-8deg))} }
+  @keyframes rainfall { from{transform:translate3d(0,0,0) skewX(var(--drop-skew,0deg))}to{transform:translate3d(var(--rain-drift,0px),calc(100cqh + 120px),0) skewX(var(--drop-skew,0deg))} }
   @keyframes rainSplash { 0%,70%{opacity:0;transform:translateX(-50%) scale(.2)}74%{opacity:.8}88%{opacity:.5;transform:translateX(-50%) scale(1)}100%{opacity:0;transform:translateX(-50%) scale(1.35)} }
   @keyframes rainHaze { from{transform:translateX(-1.5%);opacity:.48}to{transform:translateX(1.5%);opacity:.72} }
   @keyframes snowfall { to{transform:translate(35px,115vh) rotate(360deg)} }
   @keyframes skyFlash { 0%,63%,68%,100%{opacity:0}63.5%{opacity:.24}64.1%{opacity:.05}64.7%{opacity:.52}66%{opacity:.08}67%{opacity:.3} }
   @keyframes boltFlash { 0%,63%,68%,100%{opacity:0;stroke-dashoffset:500}63.25%{opacity:1;stroke-dashoffset:500}64.55%{opacity:1;stroke-dashoffset:0}65.2%{opacity:.08;stroke-dashoffset:0}65.5%{opacity:1;stroke-dashoffset:0}67%{opacity:0;stroke-dashoffset:0} }
   @keyframes boltFlashSecondary { 0%,64%,68%,100%{opacity:0;stroke-dashoffset:500}64.35%{opacity:.9;stroke-dashoffset:500}65.4%{opacity:.9;stroke-dashoffset:0}66.2%{opacity:.12;stroke-dashoffset:0}66.5%{opacity:.85;stroke-dashoffset:0}67.4%{opacity:0;stroke-dashoffset:0} }
-  @keyframes starPulse { 0%{opacity:var(--star-low,.2);transform:scale(var(--star-scale))}38%{opacity:var(--star-alpha)}100%{opacity:var(--star-end,.42);transform:scale(1.14)} }
+  @keyframes starPulse { 0%{opacity:var(--star-end,.42)}38%{opacity:var(--star-alpha)}100%{opacity:var(--star-end,.42)} }
   @keyframes meteorPass { 0%,72%{opacity:0;transform:translate3d(0,0,0) rotate(-24deg) scaleX(.28)}73%{opacity:.9}76%{opacity:.18;transform:translate3d(-240px,112px,0) rotate(-24deg) scaleX(1)}77%,100%{opacity:0;transform:translate3d(-280px,130px,0) rotate(-24deg) scaleX(.6)} }
   @keyframes sunPulse { from{box-shadow:0 0 20px rgba(255,224,108,.8),0 0 60px rgba(255,221,94,.38)}to{box-shadow:0 0 30px rgba(255,232,132,.95),0 0 88px rgba(255,221,94,.55)} }
   @keyframes windFlow { from{stroke-dashoffset:0}to{stroke-dashoffset:-69} }
@@ -233,6 +233,30 @@ const styles = `
   }
   @container (min-width:1000px) { .details { grid-template-columns:repeat(5,minmax(0,1fr)); } }
   @keyframes alertGlow { from{box-shadow:inset 4px 0 0 var(--alert-accent),0 10px 24px rgba(0,0,0,.09)}to{box-shadow:inset 4px 0 0 var(--alert-accent),0 12px 30px color-mix(in srgb,var(--alert-accent) 16%,transparent)} }
+  /* Size containment makes cqh refer to this card, never the browser viewport. */
+  .particles { container-type:size; }
+  .particle.rain { top:-60px; }
+  .particle.snow,.particle.hail { top:-20px; }
+  @keyframes fall { to{transform:translate(35px,calc(100cqh + 40px)) rotate(8deg)} }
+  @keyframes snowfall { to{transform:translate(35px,calc(100cqh + 40px)) rotate(240deg)} }
+  .stars::before { opacity:.09; }
+  .star { will-change:auto; }
+  .star.bright::before,.star.bright::after { display:none; }
+  .star.bright { box-shadow:0 0 4px rgba(223,235,255,.45); }
+  .rain-splash { bottom:2px; opacity:0; }
+  .cloud-layer { --cloud-light:rgba(231,242,250,.32); --cloud-shadow:rgba(22,39,56,.18); }
+  .cloud-shape { inset:auto!important; left:-18%!important; top:2%!important; width:125%!important; height:250px!important; border-radius:0; opacity:.7; filter:blur(8px); background:radial-gradient(ellipse at 15% 52%,var(--cloud-light),transparent 26%),radial-gradient(ellipse at 36% 37%,var(--cloud-light),transparent 29%),radial-gradient(ellipse at 62% 48%,var(--cloud-light),transparent 31%),radial-gradient(ellipse at 81% 30%,var(--cloud-shadow),transparent 30%); animation:cloudBank 43s ease-in-out infinite alternate; }
+  .cloud-shape:nth-child(2) { top:12%!important; left:-5%!important; opacity:.46; filter:blur(14px); animation-duration:67s; animation-delay:-27s; }
+  .cloud-shape:nth-child(3) { top:27%!important; left:-22%!important; opacity:.3; filter:blur(20px); animation:cloudBank 89s ease-in-out infinite alternate-reverse; animation-delay:-42s; }
+  .partly .cloud-layer { --cloud-light:rgba(248,252,255,.48); --cloud-shadow:rgba(224,237,247,.2); }
+  .partly .cloud-shape { width:82%!important; height:160px!important; }
+  .rainy .cloud-layer,.storm .cloud-layer { --cloud-light:rgba(125,149,168,.28); --cloud-shadow:rgba(9,21,36,.46); }
+  .night.cloudy,.night.rainy,.night.snowy { background:linear-gradient(180deg,#0c1727,#1c2c40 60%,#344453); }
+  .night .cloud-layer { --cloud-light:rgba(138,158,189,.18); --cloud-shadow:rgba(3,10,22,.4); }
+  .scene:not(.sunny-day):not(.sunset) .glow,.night .glow { display:none; }
+  @keyframes cloudBank { from{transform:translate3d(-3%,0,0) scale(1)}to{transform:translate3d(9%,8px,0) scale(1.07)} }
+  .scene:not(.has-clouds) .cloud-layer,.scene:not(.windy-scene) .wind-layer,.scene:not(.foggy) .fog-layer,.scene:not(.storm) .lightning { display:none; }
+  .scene.still *,.scene.still *::before,.scene.still *::after { animation:none!important; }
   @media (prefers-reduced-motion:reduce){ .particle,.rain-splash,.rain-haze,.star,.meteor,.cloud-shape,.stars,.lightning,.lightning-bolt,.sun-orb,.wind-stream,.wind-gust,.wind-leaf,.wind-leaf::before,.fog-band,.weather-alert{animation:none!important}.particles,.wind-leaf,.wind-gust,.meteor{display:none} }
 `;
 
@@ -567,8 +591,8 @@ class WeatherSolarCard extends HTMLElement {
     const location = this.config.name || a.friendly_name || "Weather";
 
     this.shadowRoot.querySelector("ha-card").innerHTML = `
-      <div class="scene ${sceneClass}">
-        ${this._stars(this.config.animate)}<div class="glow"></div><div class="sun-orb"></div><div class="sky-moon ${this._moonClass(sun.moon.phase)}${sun.moon.altitude != null && sun.moon.altitude <= 0 ? " below" : ""}" style="${this._moonSkyStyle(sun.moon)}"></div>
+      <div class="scene ${sceneClass}${this.config.animate ? '' : ' still'}" aria-hidden="true">
+        ${isNight ? this._stars(this.config.animate, sun.moon, cloud, condition) : ''}<div class="glow"></div><div class="sun-orb"></div><div class="sky-moon ${this._moonClass(sun.moon.phase)}${sun.moon.altitude != null && sun.moon.altitude <= 0 ? " below" : ""}" style="${this._moonSkyStyle(sun.moon)}"></div>
         <div class="cloud-layer"><i class="cloud-shape"></i><i class="cloud-shape"></i><i class="cloud-shape"></i></div>
         <div class="wind-layer ${this._windSceneClass(wind, windBearing, units.wind)}"><i class="wind-gust g1"></i><i class="wind-gust g2"></i><i class="wind-gust g3"></i><svg class="wind-streams" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="wind-stream" d="M-12 14 C8 3 21 27 45 16 S80 4 112 17"/><path class="wind-stream" d="M-18 28 C6 14 27 42 53 27 S86 18 116 31"/><path class="wind-stream" d="M-10 43 C15 31 32 55 58 42 S89 34 114 47"/><path class="wind-stream" d="M-20 58 C8 43 28 70 52 57 S84 48 118 61"/><path class="wind-stream" d="M-14 72 C12 60 34 82 61 70 S91 64 114 75"/><path class="wind-stream" d="M-19 86 C6 72 27 98 51 84 S85 76 117 89"/><path class="wind-stream" d="M-8 95 C18 85 37 103 64 93 S92 88 112 97"/></svg><i class="wind-leaf l1"></i><i class="wind-leaf l2"></i><i class="wind-leaf l3"></i><i class="wind-leaf l4"></i><i class="wind-leaf l5"></i></div>
         <div class="fog-layer"><i class="fog-band"></i><i class="fog-band"></i><i class="fog-band"></i></div>
@@ -744,21 +768,29 @@ class WeatherSolarCard extends HTMLElement {
     return `${intensity}${direction}`;
   }
 
-  _stars(animate = true) {
+  _stars(animate = true, moon = {}, cloud = null, condition = 'clear-night') {
+    const cover = Number.isFinite(cloud) ? Math.max(0, Math.min(100, cloud)) :
+      (['cloudy', 'rainy', 'pouring', 'snowy', 'snowy-rainy', 'hail', 'fog', 'lightning', 'lightning-rainy'].includes(condition) ? 100 : condition === 'partlycloudy' ? 45 : 0);
+    if (cover >= 85) return '';
+    const moonlight = Number(moon.altitude) > 0 ? Math.max(0, Math.min(1, Number(moon.fraction) / 100 || 0)) : 0;
+    const visibility = (1 - cover / 100) * (.88 - moonlight * .48);
+    // Seeded noise avoids grid patterns and keeps positions stable across sensor updates.
+    let seed = 82731;
+    const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
     const colours = ["#f7fbff", "#e5efff", "#fff5df", "#dce9ff", "#fffaf1"];
     const stars = Array.from({ length: 76 }, (_, i) => {
-      const x = (i * 47 + (i * i * 13) + 7) % 100;
-      const y = (i * 29 + (i * i * 7) + 5) % 79;
-      const bright = i % 17 === 0 || i % 29 === 0;
-      const size = bright ? 1.9 + (i % 3) * .35 : .55 + (i % 7) * .18;
+      const x = (random() * 100).toFixed(2);
+      const y = (random() * 83).toFixed(2);
+      const bright = i % 29 === 0;
+      const size = bright ? 1.4 + random() * .3 : .5 + random() * .7;
       const alpha = bright ? .82 + (i % 2) * .12 : .28 + (i % 6) * .1;
-      const duration = 3.2 + (i % 11) * .47;
+      const duration = 5.5 + random() * 7;
       const delay = -((i * .73) % 8.5);
-      const scale = .62 + (i % 5) * .07;
+      const scale = .96;
       const classes = `star${bright ? " bright" : ""}${i % 9 === 0 ? " soft" : ""}`;
       return `<i class="${classes}" style="--star-x:${x}%;--star-y:${y}%;--star-size:${size.toFixed(2)}px;--star-alpha:${alpha.toFixed(2)};--star-low:${(alpha * .48).toFixed(2)};--star-end:${(alpha * .72).toFixed(2)};--star-color:${colours[i % colours.length]};--star-duration:${duration.toFixed(2)}s;--star-delay:${delay.toFixed(2)}s;--star-scale:${scale.toFixed(2)}"></i>`;
     }).join("");
-    return `<div class="stars${animate ? "" : " static"}">${stars}${animate ? '<i class="meteor"></i>' : ""}</div>`;
+    return `<div class="stars${animate ? "" : " static"}" style="--sky-visibility:${visibility.toFixed(3)}">${stars}</div>`;
   }
 
   _particles(condition, windSpeed = 0, windBearing = null, windUnit = "km/h") {
@@ -770,19 +802,19 @@ class WeatherSolarCard extends HTMLElement {
       const wind = Math.max(0, Number(this._convertWind(windSpeed, windUnit, "m/s")) || 0);
       const bearing = Number(windBearing);
       const direction = Number.isFinite(bearing) && ((bearing % 360) + 360) % 360 > 0 && ((bearing % 360) + 360) % 360 < 180 ? -1 : 1;
-      const baseDrift = direction * Math.min(145, 24 + wind * 6.5);
+      const baseDrift = direction * Math.min(100, wind * 5);
       const drops = Array.from({ length: count }, (_, i) => {
         const depthIndex = (i * 7 + 3) % 10;
         const depth = depthIndex < 3 ? "far" : depthIndex > 7 ? "near" : "mid";
         const depthScale = depth === "near" ? 1.35 : depth === "far" ? .68 : 1;
-        const left = ((i * 43 + i * i * 11 + 9) % 105) - 3;
+        const left = ((i * 61.803398875 + 9) % 120) - 10;
         const length = (heavy ? 28 : 21) * depthScale + (i % 6) * 2.1;
         const width = depth === "near" ? 1.65 : depth === "far" ? .72 : 1.05;
         const speed = Math.max(.48, (heavy ? .68 : .88) / depthScale + (i % 7) * .035);
         const delay = -((i * .37) % 6.2);
         const alpha = (depth === "near" ? .76 : depth === "far" ? .28 : .52) + (i % 4) * .045;
         const drift = baseDrift * (.72 + (i % 5) * .11);
-        const skew = Math.max(-22, Math.min(22, -drift / 7));
+        const skew = Math.atan(drift / 850) * 180 / Math.PI;
         return `<i class="particle rain ${depth}" style="left:${left}%;--drop-length:${length.toFixed(1)}px;--drop-width:${width.toFixed(2)}px;--drop-speed:${speed.toFixed(2)}s;--drop-delay:${delay.toFixed(2)}s;--drop-alpha:${alpha.toFixed(2)};--rain-drift:${drift.toFixed(1)}px;--drop-skew:${skew.toFixed(1)}deg"></i>`;
       }).join("");
       const splashCount = heavy ? 18 : 11;
@@ -791,8 +823,7 @@ class WeatherSolarCard extends HTMLElement {
         const delay = -((i * .61) % 4.8);
         const speed = .92 + (i % 5) * .11;
         const size = 12 + (i % 6) * 2.4;
-        const bottom = (i % 4) * 7 + 1;
-        return `<i class="rain-splash" style="--splash-x:${x}%;--splash-delay:${delay.toFixed(2)}s;--splash-speed:${speed.toFixed(2)}s;--splash-size:${size.toFixed(1)}px;--splash-bottom:${bottom}%"></i>`;
+        return `<i class="rain-splash" style="--splash-x:${x}%;--splash-delay:${delay.toFixed(2)}s;--splash-speed:${speed.toFixed(2)}s;--splash-size:${size.toFixed(1)}px;--splash-bottom:2px"></i>`;
       }).join("");
       return `<i class="rain-haze"></i>${drops}${splashes}`;
     }

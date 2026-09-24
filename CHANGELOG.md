@@ -2,6 +2,16 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.11
+
+### Improved
+
+- Subtle, stable star positions with moonlight and cloud attenuation; removed the repeating meteor and oversized star sparkles.
+- Layered drifting cloud banks with separate daytime, night and storm shading.
+- Rain, snow and hail now cross the full card height, including tall mobile cards. Rain slants with its direction of travel; calm conditions have vertical rainfall.
+- Splash impacts stay along the bottom edge instead of floating through the sky.
+- Hidden weather layers stop animating. The Animate toggle now stops all scene motion, and reduced-motion preferences remain supported.
+
 ## 0.3.10
 
 ### Improved
