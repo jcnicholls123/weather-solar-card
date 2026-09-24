@@ -3,7 +3,7 @@
  * A dependency-free Lovelace custom card with local weather-station support.
  */
 
-const CARD_VERSION = "0.3.9";
+const CARD_VERSION = "0.3.10";
 const DEFAULTS = {
   name: "",
   weather_entity: "weather.home",
@@ -63,8 +63,17 @@ const styles = `
   .scene.rainy { background:linear-gradient(180deg,#293d52 0%,#4b6070 58%,#73818a 100%); }
   .scene.snowy { background:linear-gradient(180deg,#7796ad 0%,#aabdc9 60%,#d6e1e6 100%); }
   .scene::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.2)); pointer-events:none; }
-  .stars { position:absolute; inset:0; opacity:0; transition:opacity 1s; background-image:radial-gradient(#fff 0.8px,transparent 1px),radial-gradient(#fff 0.6px,transparent .8px); background-size:61px 61px,97px 97px; background-position:7px 11px,31px 19px; }
-  .night .stars { opacity:.55; animation:twinkle 4s ease-in-out infinite alternate; }
+  .stars { position:absolute; inset:0; opacity:0; overflow:hidden; pointer-events:none; transition:opacity 1.2s ease,filter 1.2s ease; }
+  .stars::before { content:""; position:absolute; inset:-18% -12%; opacity:.34; background:radial-gradient(ellipse at 66% 17%,rgba(155,177,224,.18),transparent 37%),linear-gradient(122deg,transparent 26%,rgba(182,199,230,.08) 46%,rgba(135,159,210,.04) 58%,transparent 73%); filter:blur(13px); transform:rotate(-7deg); }
+  .star { --star-size:1px; --star-alpha:.58; --star-scale:.72; position:absolute; left:var(--star-x); top:var(--star-y); width:var(--star-size); height:var(--star-size); border-radius:50%; opacity:var(--star-alpha); background:var(--star-color,#f7fbff); box-shadow:0 0 calc(var(--star-size) * 2.2) color-mix(in srgb,var(--star-color,#f7fbff) 68%,transparent); animation:starPulse var(--star-duration,5s) ease-in-out infinite alternate; animation-delay:var(--star-delay,0s); will-change:opacity,transform; }
+  .star.bright { box-shadow:0 0 3px var(--star-color),0 0 8px color-mix(in srgb,var(--star-color) 52%,transparent); }
+  .star.bright::before,.star.bright::after { content:""; position:absolute; left:50%; top:50%; background:color-mix(in srgb,var(--star-color) 78%,transparent); border-radius:50%; transform:translate(-50%,-50%); }
+  .star.bright::before { width:calc(var(--star-size) * 4.2); height:.55px; }.star.bright::after { width:.55px; height:calc(var(--star-size) * 4.2); }
+  .star.soft { filter:blur(.35px); }
+  .meteor { position:absolute; left:76%; top:9%; width:74px; height:1px; opacity:0; transform:rotate(-24deg); transform-origin:right center; background:linear-gradient(90deg,transparent,rgba(205,224,255,.12),rgba(248,252,255,.92)); filter:drop-shadow(0 0 3px rgba(197,220,255,.7)); animation:meteorPass 19s ease-in infinite; animation-delay:-8s; }
+  .night .stars { opacity:.88; }
+  .night.has-clouds .stars { opacity:.12; filter:blur(.65px); }
+  .stars.static .star,.stars.static .meteor { animation:none!important; }
   .glow { position:absolute; width:280px; height:280px; border-radius:50%; top:-125px; right:-80px; background:radial-gradient(circle,rgba(255,239,177,.34),transparent 67%); filter:blur(2px); }
   .sun-orb { position:absolute; top:48px; right:52px; width:54px; height:54px; border-radius:50%; opacity:0; transform:scale(.8); background:radial-gradient(circle at 38% 35%,#fffbd1 0 8%,#ffe47a 32%,#ffc84d 72%); box-shadow:0 0 22px rgba(255,224,108,.85),0 0 70px rgba(255,221,94,.45); transition:opacity 1.2s,transform 1.2s; }
   .sunny-day .sun-orb { opacity:.95; transform:scale(1); animation:sunPulse 4s ease-in-out infinite alternate; }
@@ -93,9 +102,16 @@ const styles = `
   .foggy .fog-layer { opacity:.8; }
   .fog-band { position:absolute; left:-20%; width:140%; height:76px; border-radius:50%; background:rgba(235,243,246,.2); filter:blur(18px); animation:fogDrift 12s ease-in-out infinite alternate; }
   .fog-band:nth-child(1){top:18%}.fog-band:nth-child(2){top:43%;animation-delay:-5s;opacity:.75}.fog-band:nth-child(3){top:68%;animation-delay:-9s;opacity:.6}
-  .particles { position:absolute; inset:0; overflow:hidden; opacity:.85; }
-  .particle { position:absolute; top:-12%; animation:fall linear infinite; }
-  .particle.rain { width:1.5px; height:20px; border-radius:2px; background:linear-gradient(transparent,rgba(205,233,255,.9)); transform:rotate(8deg); }
+  .particles { position:absolute; inset:0; overflow:hidden; opacity:.92; pointer-events:none; contain:strict; }
+  .particle { position:absolute; top:-12%; animation:fall linear infinite; will-change:transform; }
+  .particle.rain { top:-28vh; width:var(--drop-width,1px); height:var(--drop-length,22px); border-radius:999px; opacity:var(--drop-alpha,.58); background:linear-gradient(180deg,transparent 0%,rgba(180,216,240,.18) 18%,rgba(218,239,253,.88) 78%,rgba(247,252,255,.98) 100%); box-shadow:0 0 var(--drop-glow,1px) rgba(204,232,250,.32); transform:skewX(var(--drop-skew,-8deg)); animation-name:rainfall; animation-duration:var(--drop-speed,.9s); animation-delay:var(--drop-delay,0s); animation-timing-function:linear; animation-iteration-count:infinite; }
+  .particle.rain.far { filter:blur(.35px); }.particle.rain.near { box-shadow:0 0 2px rgba(225,244,255,.48); }
+  .rain-haze { position:absolute; inset:0; opacity:.58; background:linear-gradient(108deg,transparent 0 18%,rgba(181,211,229,.055) 34%,transparent 49% 58%,rgba(205,229,242,.045) 72%,transparent 89%),linear-gradient(180deg,rgba(12,26,39,.08),transparent 42%,rgba(219,233,239,.12)); animation:rainHaze 6s ease-in-out infinite alternate; }
+  .rain-heavy .rain-haze,.rain-storm .rain-haze { opacity:.82; background:linear-gradient(106deg,rgba(174,208,230,.04),rgba(213,233,245,.1) 34%,transparent 57%,rgba(191,220,238,.08) 76%,transparent),linear-gradient(180deg,rgba(7,18,29,.17),transparent 36%,rgba(218,233,240,.16)); }
+  .rain-splash { --splash-size:18px; position:absolute; left:var(--splash-x); bottom:var(--splash-bottom,2%); width:var(--splash-size); height:5px; opacity:0; border:1px solid rgba(219,240,252,.62); border-top-color:transparent; border-radius:50%; transform:translateX(-50%) scale(.25); animation:rainSplash var(--splash-speed,1.15s) ease-out infinite; animation-delay:var(--splash-delay,0s); }
+  .rain-splash::before,.rain-splash::after { content:""; position:absolute; bottom:1px; width:2px; height:6px; border-radius:50% 50% 45% 45%; background:rgba(225,244,255,.72); transform-origin:bottom; }
+  .rain-splash::before { left:3px; transform:rotate(-34deg); }.rain-splash::after { right:3px; transform:rotate(34deg); }
+  .rain-heavy .rain-splash { border-color:rgba(226,244,255,.78); border-top-color:transparent; }
   .particle.snow { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.8); filter:blur(.3px); animation-name:snowfall; }
   .particle.hail { width:5px; height:7px; border-radius:50%; background:rgba(239,248,255,.95); box-shadow:0 0 4px rgba(255,255,255,.55); }
   .lightning { position:absolute; inset:0; opacity:0; pointer-events:none; background:radial-gradient(circle at 67% 22%,rgba(225,239,255,.72),rgba(166,205,240,.18) 23%,transparent 52%); }
@@ -162,11 +178,15 @@ const styles = `
   .error { margin:16px; padding:14px; background:var(--error-color,#db4437); border-radius:12px; color:white; }
   @keyframes drift { from{transform:translateX(0)}to{transform:translateX(calc(100vw + 420px))} }
   @keyframes fall { to{transform:translate(55px,115vh) rotate(8deg)} }
+  @keyframes rainfall { from{transform:translate3d(0,-18vh,0) skewX(var(--drop-skew,-8deg))}to{transform:translate3d(var(--rain-drift,48px),138vh,0) skewX(var(--drop-skew,-8deg))} }
+  @keyframes rainSplash { 0%,70%{opacity:0;transform:translateX(-50%) scale(.2)}74%{opacity:.8}88%{opacity:.5;transform:translateX(-50%) scale(1)}100%{opacity:0;transform:translateX(-50%) scale(1.35)} }
+  @keyframes rainHaze { from{transform:translateX(-1.5%);opacity:.48}to{transform:translateX(1.5%);opacity:.72} }
   @keyframes snowfall { to{transform:translate(35px,115vh) rotate(360deg)} }
   @keyframes skyFlash { 0%,63%,68%,100%{opacity:0}63.5%{opacity:.24}64.1%{opacity:.05}64.7%{opacity:.52}66%{opacity:.08}67%{opacity:.3} }
   @keyframes boltFlash { 0%,63%,68%,100%{opacity:0;stroke-dashoffset:500}63.25%{opacity:1;stroke-dashoffset:500}64.55%{opacity:1;stroke-dashoffset:0}65.2%{opacity:.08;stroke-dashoffset:0}65.5%{opacity:1;stroke-dashoffset:0}67%{opacity:0;stroke-dashoffset:0} }
   @keyframes boltFlashSecondary { 0%,64%,68%,100%{opacity:0;stroke-dashoffset:500}64.35%{opacity:.9;stroke-dashoffset:500}65.4%{opacity:.9;stroke-dashoffset:0}66.2%{opacity:.12;stroke-dashoffset:0}66.5%{opacity:.85;stroke-dashoffset:0}67.4%{opacity:0;stroke-dashoffset:0} }
-  @keyframes twinkle { from{opacity:.35}to{opacity:.66} }
+  @keyframes starPulse { 0%{opacity:var(--star-low,.2);transform:scale(var(--star-scale))}38%{opacity:var(--star-alpha)}100%{opacity:var(--star-end,.42);transform:scale(1.14)} }
+  @keyframes meteorPass { 0%,72%{opacity:0;transform:translate3d(0,0,0) rotate(-24deg) scaleX(.28)}73%{opacity:.9}76%{opacity:.18;transform:translate3d(-240px,112px,0) rotate(-24deg) scaleX(1)}77%,100%{opacity:0;transform:translate3d(-280px,130px,0) rotate(-24deg) scaleX(.6)} }
   @keyframes sunPulse { from{box-shadow:0 0 20px rgba(255,224,108,.8),0 0 60px rgba(255,221,94,.38)}to{box-shadow:0 0 30px rgba(255,232,132,.95),0 0 88px rgba(255,221,94,.55)} }
   @keyframes windFlow { from{stroke-dashoffset:0}to{stroke-dashoffset:-69} }
   @keyframes gustSweep { 0%,12%{transform:translateX(0) scaleX(.65);opacity:0}18%{opacity:.7}48%{opacity:.42}72%{transform:translateX(285%) scaleX(1.22);opacity:.65}82%,100%{transform:translateX(310%) scaleX(1.35);opacity:0} }
@@ -213,7 +233,7 @@ const styles = `
   }
   @container (min-width:1000px) { .details { grid-template-columns:repeat(5,minmax(0,1fr)); } }
   @keyframes alertGlow { from{box-shadow:inset 4px 0 0 var(--alert-accent),0 10px 24px rgba(0,0,0,.09)}to{box-shadow:inset 4px 0 0 var(--alert-accent),0 12px 30px color-mix(in srgb,var(--alert-accent) 16%,transparent)} }
-  @media (prefers-reduced-motion:reduce){ .particle,.cloud-shape,.stars,.lightning,.lightning-bolt,.sun-orb,.wind-stream,.wind-gust,.wind-leaf,.wind-leaf::before,.fog-band,.weather-alert{animation:none!important}.particles,.wind-leaf,.wind-gust{display:none} }
+  @media (prefers-reduced-motion:reduce){ .particle,.rain-splash,.rain-haze,.star,.meteor,.cloud-shape,.stars,.lightning,.lightning-bolt,.sun-orb,.wind-stream,.wind-gust,.wind-leaf,.wind-leaf::before,.fog-band,.weather-alert{animation:none!important}.particles,.wind-leaf,.wind-gust,.meteor{display:none} }
 `;
 
 // Location-aware lunar calculations adapted from the BSD-2-Clause SunCalc
@@ -543,12 +563,12 @@ class WeatherSolarCard extends HTMLElement {
     const minute = this._minuteData();
     const summary = this._summary(condition, temp, apparent, wind, rainRate, minute, units.precipitation, units.wind);
     const alert = this.config.show_weather_alerts ? this._weatherAlert() : null;
-    const particles = this.config.animate ? this._particles(condition) : "";
+    const particles = this.config.animate ? this._particles(condition, wind, windBearing, units.wind) : "";
     const location = this.config.name || a.friendly_name || "Weather";
 
     this.shadowRoot.querySelector("ha-card").innerHTML = `
       <div class="scene ${sceneClass}">
-        <div class="stars"></div><div class="glow"></div><div class="sun-orb"></div><div class="sky-moon ${this._moonClass(sun.moon.phase)}${sun.moon.altitude != null && sun.moon.altitude <= 0 ? " below" : ""}" style="${this._moonSkyStyle(sun.moon)}"></div>
+        ${this._stars(this.config.animate)}<div class="glow"></div><div class="sun-orb"></div><div class="sky-moon ${this._moonClass(sun.moon.phase)}${sun.moon.altitude != null && sun.moon.altitude <= 0 ? " below" : ""}" style="${this._moonSkyStyle(sun.moon)}"></div>
         <div class="cloud-layer"><i class="cloud-shape"></i><i class="cloud-shape"></i><i class="cloud-shape"></i></div>
         <div class="wind-layer ${this._windSceneClass(wind, windBearing, units.wind)}"><i class="wind-gust g1"></i><i class="wind-gust g2"></i><i class="wind-gust g3"></i><svg class="wind-streams" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="wind-stream" d="M-12 14 C8 3 21 27 45 16 S80 4 112 17"/><path class="wind-stream" d="M-18 28 C6 14 27 42 53 27 S86 18 116 31"/><path class="wind-stream" d="M-10 43 C15 31 32 55 58 42 S89 34 114 47"/><path class="wind-stream" d="M-20 58 C8 43 28 70 52 57 S84 48 118 61"/><path class="wind-stream" d="M-14 72 C12 60 34 82 61 70 S91 64 114 75"/><path class="wind-stream" d="M-19 86 C6 72 27 98 51 84 S85 76 117 89"/><path class="wind-stream" d="M-8 95 C18 85 37 103 64 93 S92 88 112 97"/></svg><i class="wind-leaf l1"></i><i class="wind-leaf l2"></i><i class="wind-leaf l3"></i><i class="wind-leaf l4"></i><i class="wind-leaf l5"></i></div>
         <div class="fog-layer"><i class="fog-band"></i><i class="fog-band"></i><i class="fog-band"></i></div>
@@ -710,6 +730,8 @@ class WeatherSolarCard extends HTMLElement {
     if (["windy", "windy-variant"].includes(condition)) classes.push("windy-scene");
     if (condition === "fog") classes.push("foggy");
     if (["rainy", "pouring", "hail", "lightning-rainy"].includes(condition)) classes.push("rainy", "has-clouds");
+    if (condition === "pouring") classes.push("rain-heavy");
+    if (condition === "lightning-rainy") classes.push("rain-heavy", "rain-storm");
     if (["snowy", "snowy-rainy"].includes(condition)) classes.push("snowy", "has-clouds");
     if (["lightning", "lightning-rainy"].includes(condition)) classes.push("storm");
     return classes.join(" ");
@@ -722,14 +744,63 @@ class WeatherSolarCard extends HTMLElement {
     return `${intensity}${direction}`;
   }
 
-  _particles(condition) {
+  _stars(animate = true) {
+    const colours = ["#f7fbff", "#e5efff", "#fff5df", "#dce9ff", "#fffaf1"];
+    const stars = Array.from({ length: 76 }, (_, i) => {
+      const x = (i * 47 + (i * i * 13) + 7) % 100;
+      const y = (i * 29 + (i * i * 7) + 5) % 79;
+      const bright = i % 17 === 0 || i % 29 === 0;
+      const size = bright ? 1.9 + (i % 3) * .35 : .55 + (i % 7) * .18;
+      const alpha = bright ? .82 + (i % 2) * .12 : .28 + (i % 6) * .1;
+      const duration = 3.2 + (i % 11) * .47;
+      const delay = -((i * .73) % 8.5);
+      const scale = .62 + (i % 5) * .07;
+      const classes = `star${bright ? " bright" : ""}${i % 9 === 0 ? " soft" : ""}`;
+      return `<i class="${classes}" style="--star-x:${x}%;--star-y:${y}%;--star-size:${size.toFixed(2)}px;--star-alpha:${alpha.toFixed(2)};--star-low:${(alpha * .48).toFixed(2)};--star-end:${(alpha * .72).toFixed(2)};--star-color:${colours[i % colours.length]};--star-duration:${duration.toFixed(2)}s;--star-delay:${delay.toFixed(2)}s;--star-scale:${scale.toFixed(2)}"></i>`;
+    }).join("");
+    return `<div class="stars${animate ? "" : " static"}">${stars}${animate ? '<i class="meteor"></i>' : ""}</div>`;
+  }
+
+  _particles(condition, windSpeed = 0, windBearing = null, windUnit = "km/h") {
     const type = condition === "hail" ? "hail" : (["snowy", "snowy-rainy"].includes(condition) ? "snow" : (["rainy", "pouring", "lightning-rainy"].includes(condition) ? "rain" : null));
     if (!type) return "";
-    const count = type === "rain" ? (condition === "pouring" ? 72 : 48) : type === "hail" ? 42 : 30;
+    if (type === "rain") {
+      const heavy = ["pouring", "lightning-rainy"].includes(condition);
+      const count = heavy ? 88 : 58;
+      const wind = Math.max(0, Number(this._convertWind(windSpeed, windUnit, "m/s")) || 0);
+      const bearing = Number(windBearing);
+      const direction = Number.isFinite(bearing) && ((bearing % 360) + 360) % 360 > 0 && ((bearing % 360) + 360) % 360 < 180 ? -1 : 1;
+      const baseDrift = direction * Math.min(145, 24 + wind * 6.5);
+      const drops = Array.from({ length: count }, (_, i) => {
+        const depthIndex = (i * 7 + 3) % 10;
+        const depth = depthIndex < 3 ? "far" : depthIndex > 7 ? "near" : "mid";
+        const depthScale = depth === "near" ? 1.35 : depth === "far" ? .68 : 1;
+        const left = ((i * 43 + i * i * 11 + 9) % 105) - 3;
+        const length = (heavy ? 28 : 21) * depthScale + (i % 6) * 2.1;
+        const width = depth === "near" ? 1.65 : depth === "far" ? .72 : 1.05;
+        const speed = Math.max(.48, (heavy ? .68 : .88) / depthScale + (i % 7) * .035);
+        const delay = -((i * .37) % 6.2);
+        const alpha = (depth === "near" ? .76 : depth === "far" ? .28 : .52) + (i % 4) * .045;
+        const drift = baseDrift * (.72 + (i % 5) * .11);
+        const skew = Math.max(-22, Math.min(22, -drift / 7));
+        return `<i class="particle rain ${depth}" style="left:${left}%;--drop-length:${length.toFixed(1)}px;--drop-width:${width.toFixed(2)}px;--drop-speed:${speed.toFixed(2)}s;--drop-delay:${delay.toFixed(2)}s;--drop-alpha:${alpha.toFixed(2)};--rain-drift:${drift.toFixed(1)}px;--drop-skew:${skew.toFixed(1)}deg"></i>`;
+      }).join("");
+      const splashCount = heavy ? 18 : 11;
+      const splashes = Array.from({ length: splashCount }, (_, i) => {
+        const x = (i * 53 + i * i * 17 + 13) % 100;
+        const delay = -((i * .61) % 4.8);
+        const speed = .92 + (i % 5) * .11;
+        const size = 12 + (i % 6) * 2.4;
+        const bottom = (i % 4) * 7 + 1;
+        return `<i class="rain-splash" style="--splash-x:${x}%;--splash-delay:${delay.toFixed(2)}s;--splash-speed:${speed.toFixed(2)}s;--splash-size:${size.toFixed(1)}px;--splash-bottom:${bottom}%"></i>`;
+      }).join("");
+      return `<i class="rain-haze"></i>${drops}${splashes}`;
+    }
+    const count = type === "hail" ? 42 : 30;
     return Array.from({ length: count }, (_, i) => {
       const left = (i * 37 + 11) % 101;
       const delay = -((i * 0.43) % 7);
-      const duration = type === "rain" ? 0.75 + (i % 6) * 0.09 : type === "hail" ? 1.15 + (i % 5) * .13 : 5 + (i % 7) * 0.65;
+      const duration = type === "hail" ? 1.15 + (i % 5) * .13 : 5 + (i % 7) * 0.65;
       const opacity = 0.35 + (i % 5) * 0.12;
       return `<i class="particle ${type}" style="left:${left}%;animation-delay:${delay}s;animation-duration:${duration}s;opacity:${opacity}"></i>`;
     }).join("");

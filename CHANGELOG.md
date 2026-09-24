@@ -2,6 +2,15 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.10
+
+### Improved
+
+- Replaced the repeating night-sky dot pattern with a naturally distributed, colour-temperature-varied star field, independent twinkle cycles, bright-star diffraction, subtle Milky Way haze and a rare shooting star.
+- Cloud cover now realistically dims and softens the stars instead of leaving a clear star pattern visible through overcast skies.
+- Rebuilt rain with near, middle and far depth layers, variable drop length and brightness, wind-driven slant, atmospheric rain haze and animated surface splashes.
+- Heavy rain and thunderstorms now use substantially denser precipitation and stronger mist while retaining GPU-friendly transforms and reduced-motion support.
+
 ## 0.3.9
 
 ### Improved
