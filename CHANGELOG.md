@@ -2,6 +2,20 @@
 
 All notable changes to Weather Solar Card are recorded here. The same notes are included with GitHub releases so HACS can show them before an update.
 
+## 0.3.12
+
+### Improved
+
+- Rain now patters along the panel tops with staggered splash beads, wet-edge highlights and corner runoff. Downpours have denser impacts and longer rivulets; effects follow resizing, do not block controls, and pause on offscreen panels.
+- Rebuilt wind without outlined airflow paths: soft atmospheric gusts, sparse airborne motes and occasional shaded, tumbling leaves that travel relative to the card width.
+- Snow now drifts with varied flake depth and builds decorative snow caps along panel tops. Caps follow live panel positions through responsive layouts and preserve build-up across weather updates. Sleet uses a thinner dusting; reduced-motion and Animate-off modes show static accumulation.
+
+- Replaced platform-dependent weather emoji with the original Atmosphere vector icon set, with shared gradients and crisp forecast-size rendering.
+- Distinct fog, rain, downpour, hail, snow, sleet, wind, thunderstorm and unusual-weather icons, plus different sunrise and sunset arrows.
+- Forecast sunny/partly-cloudy icons switch to lunar variants after dark using local solar altitude.
+- Continuous lunar illumination shapes replace coarse disc-offset masks in the sky and Local moon panel; last-quarter moons now illuminate the correct side.
+- Forecast icons now have accessible condition labels and require no external fonts, images or network requests.
+
 ## 0.3.11
 
 ### Improved
